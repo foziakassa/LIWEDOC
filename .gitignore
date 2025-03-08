@@ -1,3 +1,5 @@
 /node_modules
 .env
 .vercel
+.pgconnect.json
+.pgconnection2.json
