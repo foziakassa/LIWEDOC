@@ -16,7 +16,7 @@ const pool = new Pool({
     host: process.env.DB_HOST,     // Host from environment variable
     database: process.env.DB_NAME,  // Your database name from environment variable
     password: process.env.DB_PASSWORD, // PostgreSQL password from environment variable
-    port: process.env.DB_PORT,      // PostgreSQL port from environment variable
+    port: process.env.DB_PORT,      // PostgreSQfnjntuirutgitjrngnrgnngnrruntggnL port from environment variable
 });
 
 // POST API to create a new user
