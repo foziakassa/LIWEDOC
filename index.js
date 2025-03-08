@@ -1,16 +1,4 @@
-// const express = require("express");
-// const app = express();
 
-// const PORT = process.env.PORT || 3000;
-
-// app.get("/", (req, res) => {
-//     console.log("Received a request"); // Logging for debugging
-//     res.send("Express on Vercel");
-// });
-
-// app.listen(PORT, () => console.log(`Server ready on port ${PORT}.`));
-
-// module.exports = app;
 const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
@@ -70,7 +58,7 @@ app.post("/", async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}.${Pool.port}`);
+    console.log(`Server running on port ${PORT}`);
     console.log("PostgreSQL Pool Configuration:");
 console.log(`User: ${process.env.DB_USER}`);
 console.log(`Host: ${process.env.DB_HOST}`);
