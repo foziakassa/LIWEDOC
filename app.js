@@ -20,6 +20,10 @@ const pool = new Pool({
 });
 
 // POST API to create a new user
+app.get("/" , (req, res)=>{
+    res.send("here u are")
+})
+
 app.post("/", async (req, res) => {
     const { FirstName, LastName, UserId, Email, Password } = req.body;
 
