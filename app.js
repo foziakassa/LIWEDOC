@@ -20,7 +20,7 @@ const pool = new Pool({
 });
 
 // POST API to create a new user
-app.post("/api/users", async (req, res) => {
+app.post("/", async (req, res) => {
     const { FirstName, LastName, UserId, Email, Password } = req.body;
 
     // Basic validation
