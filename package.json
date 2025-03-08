@@ -2,14 +2,18 @@
   "name": "lwiedoc",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"  },
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
     "express": "^4.21.2",
-    "nodeman": "^1.1.2"
+    "nodeman": "^1.1.2",
+    "pg": "^8.13.3"
   }
 }
