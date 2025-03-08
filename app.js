@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
+require("dotenv").config(); // Load environment variables from .env file
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,11 +12,11 @@ app.use(bodyParser.json());
 
 // PostgreSQL connection setup
 const pool = new Pool({
-    user: 'avnadmin',    // PostgreSQL username
-    host: 'pg-245db9db-foziakassa19-019c.d.aivencloud.com', // Host
-    database: 'defaultdb', // Your database name
-    password: 'AVNS_zRXKf_MQ6k6XrKN9ns0', // PostgreSQL password
-    port: 19193, // PostgreSQL port
+    user: process.env.DB_USER,    // PostgreSQL username from environment variable
+    host: process.env.DB_HOST,     // Host from environment variable
+    database: process.env.DB_NAME,  // Your database name from environment variable
+    password: process.env.DB_PASSWORD, // PostgreSQL password from environment variable
+    port: process.env.DB_PORT,      // PostgreSQL port from environment variable
 });
 
 // POST API to create a new user
