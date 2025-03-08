@@ -18,7 +18,7 @@ const bcrypt = require("bcrypt");
 require("dotenv").config(); // Load environment variables from .env file
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
