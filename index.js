@@ -1,16 +1,4 @@
-// const express = require("express");
-// const app = express();
 
-// const PORT = process.env.PORT || 3000;
-
-// app.get("/", (req, res) => {
-//     console.log("Received a request"); // Logging for debugging
-//     res.send("Express on Vercel");
-// });
-
-// app.listen(PORT, () => console.log(`Server ready on port ${PORT}.`));
-
-// module.exports = app;
 const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
@@ -18,21 +6,9 @@ const bcrypt = require("bcrypt");
 require("dotenv").config(); // Load environment variables from .env file
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.DB_PORT;
 
 // Middleware to parse JSON bodies
-app.use(bodyParser.json());
-
-// PostgreSQL connection setup
-const pool = new Pool({
-    user: process.env.DB_USER,    // PostgreSQL username from environment variable
-    host: process.env.DB_HOST,     // Host from environment variable
-    database: process.env.DB_NAME,  // Your database name from environment variable
-    password: process.env.DB_PASSWORD, // PostgreSQL password from environment variable
-    port: process.env.DB_PORT,      // PostgreSQfnjntuirutgitjrngnrgnngnrruntggnL port from environment variable
-});
-
-// POST API to create a new user
 
 
 app.post("/", async (req, res) => {
@@ -43,9 +19,15 @@ app.post("/", async (req, res) => {
         return res.status(400).json({ error: "All fields are required." });
     }
 
+    // Parse UserId as an integer
+    const userIdInt = parseInt(UserId, 10);
+    if (isNaN(userIdInt)) {
+        return res.status(400).json({ error: "UserId must be an integer." });
+    }
+
     try {
         // Check if the user already exists
-        const userCheck = await pool.query("SELECT * FROM user WHERE UserId = $1", [UserId]);
+        const userCheck = await pool.query("SELECT * FROM user WHERE UserId = $1", [userIdInt]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
         }
@@ -56,7 +38,7 @@ app.post("/", async (req, res) => {
         // Insert the new user into the database
         const newUser = await pool.query(
             "INSERT INTO user (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            [ FirstName, LastName, Email,UserId, hashedPassword]
+            [userIdInt, FirstName, LastName, Email, hashedPassword]
         );
 
         // Return the created user
@@ -65,9 +47,4 @@ app.post("/", async (req, res) => {
         console.error(err);
         return res.status(500).json(err);
     }
-});
-
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}.`);
 });
