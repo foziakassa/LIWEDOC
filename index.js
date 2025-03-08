@@ -33,7 +33,7 @@ pool.connect()
     });
 
 // User creation endpoint
-app.post("/users", async (req, res) => {
+app.post("/", async (req, res) => {
     const { FirstName, LastName, UserId, Email, Password } = req.body;
 
     // Validate input
