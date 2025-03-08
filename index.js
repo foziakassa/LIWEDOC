@@ -63,7 +63,7 @@ app.post("/", async (req, res) => {
         return res.status(201).json(newUser.rows[0]);
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: "Database error." });
+        return res.status(500).json(err);
     }
 });
 
