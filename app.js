@@ -40,7 +40,7 @@ app.post("/", async (req, res) => {
 
         // Insert the new user into the database
         const newUser = await pool.query(
-            "INSERT INTO users (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            "INSERT INTO user (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [UserId, FirstName, LastName, Email, hashedPassword]
         );
 
