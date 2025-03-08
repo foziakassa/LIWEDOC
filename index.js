@@ -30,7 +30,7 @@ app.post("/", async (req, res) => {
 
     try {
         // Check if the user already exists
-        const userCheck = await pool.query("SELECT * FROM user WHERE UserId = $1", [UserId]);
+        const userCheck = await pool.query("SELECT * FROM User WHERE UserId = $1", [UserId]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
         }
@@ -40,7 +40,7 @@ app.post("/", async (req, res) => {
 
         // Insert the new user into the database
         const newUser = await pool.query(
-            "INSERT INTO user (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            "INSERT INTO User (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [UserId, FirstName, LastName, Email, hashedPassword]
         );
 
