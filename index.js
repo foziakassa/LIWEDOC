@@ -70,5 +70,11 @@ app.post("/", async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}.`);
+    console.log(`Server running on port ${PORT}.${Pool.port}`);
+    console.log("PostgreSQL Pool Configuration:");
+console.log(`User: ${process.env.DB_USER}`);
+console.log(`Host: ${process.env.DB_HOST}`);
+console.log(`Database: ${process.env.DB_NAME}`);
+console.log(`Password: ${process.env.DB_PASSWORD ? "*****" : "Not Set"}`); // Mask the password
+console.log(`Port: ${process.env.DB_PORT}`);
 });
