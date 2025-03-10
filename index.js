@@ -31,11 +31,19 @@ pool.connect()
     .catch(err => {
         console.error("Database connection error:", err);
     });
-    app.get("/users" , (req, res)=>{
-        res.send(pool.query("SELECT * FROM \User\""+"here the user are"))
-    })
 
-// User creation endpoint
+// GET route to retrieve all users
+app.get("/users", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM \"User\"");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// POST route to create a new user
 app.post("/users", async (req, res) => {
     const { FirstName, LastName, UserId, Email, Password } = req.body;
 
@@ -46,7 +54,7 @@ app.post("/users", async (req, res) => {
 
     try {
         // Check if the user already exists
-        const userCheck = await pool.query("SELECT * FROM \"User\" WHERE UserId = $1", [UserId]);
+        const userCheck = await pool.query("SELECT * FROM \"User\" WHERE \"UserId\" = $1", [UserId]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
         }
@@ -56,7 +64,7 @@ app.post("/users", async (req, res) => {
 
         // Insert the new user into the database
         const newUser = await pool.query(
-            "INSERT INTO \"User\" (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            "INSERT INTO \"User\" (\"UserId\", \"FirstName\", \"LastName\", \"Email\", \"password\") VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [UserId, FirstName, LastName, Email, hashedPassword]
         );
 
