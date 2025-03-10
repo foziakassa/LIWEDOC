@@ -31,6 +31,9 @@ pool.connect()
     .catch(err => {
         console.error("Database connection error:", err);
     });
+    app.get("/users" , (req, res)=>{
+        res.send(pool.query("SELECT * FROM \User\""+"here the user are"))
+    })
 
 // User creation endpoint
 app.post("/users", async (req, res) => {
