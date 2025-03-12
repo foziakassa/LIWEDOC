@@ -33,10 +33,18 @@ pool.connect()
     });
 
 // GET route to retrieve all users
+// GET route to retrieve all users
 app.get("/users", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM \"users\"");
-        res.json(result.rows);
+        // Format the response
+        const users = result.rows.map(user => ({
+            Firstname: user.Firstname,
+            Lastname: user.Lastname,
+            Email: user.Email,
+            // Add any other fields you want to include
+        }));
+        res.json({ users }); // Send users in a structured format
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
