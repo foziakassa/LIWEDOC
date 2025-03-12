@@ -45,13 +45,14 @@ app.get("/users", async (req, res) => {
 
 // POST route to create a new user
 app.post("/users", async (req, res) => {
-    const { FirstName, LastName, Email, Password } = req.body;
+    const { Firstname, Lastname, Email, Password } = req.body;
 
-    if (!FirstName || !LastName || !Email || !Password) {
+    if (!Firstname || !Lastname || !Email || !Password) {
         return res.status(400).json({ error: "All fields are required." });
     }
 
     try {
+        // Check for existing user with lowercase email
         const userCheck = await pool.query("SELECT * FROM \"users\" WHERE \"Email\" = $1", [Email]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
@@ -59,8 +60,8 @@ app.post("/users", async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(Password, 10);
         const newUser = await pool.query(
-            "INSERT INTO \"users\" (\"FirstName\", \"LastName\", \"Email\", \"password\") VALUES ($1, $2, $3, $4) RETURNING *",
-            [FirstName, LastName, Email, hashedPassword]
+            "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
+            [Firstname, Lastname, Email, hashedPassword]
         );
 
         return res.status(201).json(newUser.rows[0]);
@@ -69,7 +70,6 @@ app.post("/users", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
