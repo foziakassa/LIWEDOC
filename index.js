@@ -33,7 +33,7 @@ pool.connect()
     });
 
 // GET route to retrieve all users
-app.get("/users", async (req, res) => {
+app.get("/", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM \"users\"");
         res.json(result.rows);
@@ -44,7 +44,7 @@ app.get("/users", async (req, res) => {
 });
 
 // POST route to create a new user
-app.post("/users", async (req, res) => {
+app.post("/", async (req, res) => {
     const { Firstname, Lastname, Email, Password } = req.body;
 
     if (!Firstname || !Lastname || !Email || !Password) {
