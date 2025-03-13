@@ -1,55 +1,14 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const { Pool } = require("pg");
-const bcrypt = require("bcrypt");
-require("dotenv").config();
-
-const router = express.Router();
-router.use(bodyParser.json());
-
-// PostgreSQL connection setup
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false,
-    },
-});
-// GET API for users
-router.get("/", (req, res) => {
-    res.send("User endpoint");
-});
-
-// POST API to create a new user
-router.post("/", async (req, res) => {
-    const { FirstName, LastName, UserId, Email, Password } = req.body;
-
-    // Basic validation
-    if (!FirstName || !LastName || !UserId || !Email || !Password) {
-        return res.status(400).json({ error: "All fields are required." });
+// api/users.js
+export default function handler(req, res) {
+    if (req.method === 'GET') {
+      // Handle GET request for users
+      res.status(200).json({ message: 'List of users' });
+    } else if (req.method === 'POST') {
+      // Handle POST request to create a user
+      res.status(201).json({ message: 'User  created' });
+    } else {
+      // Handle any other HTTP method
+      res.setHeader('Allow', ['GET', 'POST']);
+      res.status(405).end(`Method ${req.method} Not Allowed`);
     }
-
-    try {
-        // Check if the user already exists
-        const userCheck = await pool.query("SELECT * FROM users WHERE UserId = $1", [UserId]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "User already exists." });
-        }
-
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(Password, 10);
-
-        // Insert the new user into the database
-        const newUser = await pool.query(
-            "INSERT INTO users (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            [UserId, FirstName, LastName, Email, hashedPassword]
-        );
-
-        // Return the created user
-        return res.status(201).json(newUser.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Database error." });
-    }
-});
-
-module.exports = router;
+  }
