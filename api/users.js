@@ -1,14 +1,5 @@
 // api/users.js
-
-// api/db.js
-import { Pool } from 'pg';
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false,
-    },
-});
+import pool from './db';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -24,7 +15,3 @@ export default async function handler(req, res) {
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}.`);
-});
