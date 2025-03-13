@@ -20,11 +20,13 @@ const pool = new Pool({
 });
 
 // POST API to create a new user
-app.get("/" , (req, res)=>{
-    res.send("here u")
+app.get("/api/users" , (req, res)=>{
+    res.send("User endpoint")
 })
 
-app.post("/", async (req, res) => {
+
+app.post("/api/users", async (req, res) => {
+
     const { FirstName, LastName, UserId, Email, Password } = req.body;
 
     // Basic validation
@@ -43,8 +45,9 @@ app.post("/", async (req, res) => {
         const hashedPassword = await bcrypt.hash(Password, 10);
 
         // Insert the new user into the database
-        const newUser = await pool.query(
-            "INSERT INTO user (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+    const newUser = await pool.query(
+        "INSERT INTO users (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+
             [UserId, FirstName, LastName, Email, hashedPassword]
         );
 
