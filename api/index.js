@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
+const emailExistence = require("email-existence"); // Import the email-existence library
 require("dotenv").config();
 
 const app = express();
@@ -52,24 +53,35 @@ app.post("/users", async (req, res) => {
         return res.status(400).json({ error: "Invalid email format." });
     }
 
-    try {
-        // Check for existing user with lowercase email
-        const userCheck = await pool.query("SELECT * FROM \"users\" WHERE \"Email\" = $1", [Email]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "User  already exists." });
+    // Check if the email exists
+    emailExistence.check(Email, async (error, response) => {
+        if (error) {
+            return res.status(500).json({ error: "Internal Server Error" });
         }
 
-        const hashedPassword = await bcrypt.hash(Password, 10);
-        const newUser  = await pool.query(
-            "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
-            [Firstname, Lastname, Email, hashedPassword]
-        );
+        if (!response) {
+            return res.status(400).json({ error: "Email does not exist." });
+        }
 
-        return res.status(201).json(newUser .rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Internal Server Error" });
-    }
+        try {
+            // Check for existing user with the provided email
+            const userCheck = await pool.query("SELECT * FROM \"users\" WHERE \"Email\" = $1", [Email]);
+            if (userCheck.rows.length > 0) {
+                return res.status(400).json({ error: "User  already exists." });
+            }
+
+            const hashedPassword = await bcrypt.hash(Password, 10);
+            const newUser  = await pool.query(
+                "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
+                [Firstname, Lastname, Email, hashedPassword]
+            );
+
+            return res.status(201).json(newUser .rows[0]);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({ error: "Internal Server Error" });
+        }
+    });
 });
 
 // Start the server
