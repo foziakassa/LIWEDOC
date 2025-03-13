@@ -13,7 +13,7 @@ app.post('/products', (req, res) => {
 });
 
 app.get('/products', (req, res) => {
-    res.send(products);
+    res.send("hi there ");
 });
 
 app.get('/products/:id', (req, res) => {
