@@ -1,5 +1,5 @@
 // api/users.js
-import pool from './db';
+
 // api/db.js
 import { Pool } from 'pg';
 
@@ -24,3 +24,7 @@ export default async function handler(req, res) {
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}.`);
+});
