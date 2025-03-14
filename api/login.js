@@ -1,65 +1,37 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const { Pool } = require("pg");
-const bcrypt = require("bcrypt");
-require("dotenv").config(); // Load environment variables from .env file
+// api/users.js
+import pool from './db';
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware to parse JSON bodies
-app.use(bodyParser.json());
-
-// PostgreSQL connection setup
-const pool = new Pool({
-    user: process.env.DB_USER,    // PostgreSQL username from environment variable
-    host: process.env.DB_HOST,     // Host from environment variable
-    database: process.env.DB_NAME,  // Your database name from environment variable
-    password: process.env.DB_PASSWORD, // PostgreSQL password from environment variable
-    port: process.env.DB_PORT,      // PostgreSQfnjntuirutgitjrngnrgnngnrruntggnL port from environment variable
-});
-
-// POST API to create a new user
-app.get("/api/users" , (req, res)=>{
-    res.send("User endpoint")
-})
-
-
-app.post("/api/users", async (req, res) => {
-
-    const { FirstName, LastName, UserId, Email, Password } = req.body;
-
-    // Basic validation
-    if (!FirstName || !LastName || !UserId || !Email || !Password) {
-        return res.status(400).json({ error: "All fields are required." });
-    }
-
-    try {
-        // Check if the user already exists
-        const userCheck = await pool.query("SELECT * FROM users WHERE UserId = $1", [UserId]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "User already exists." });
+export default async function handler(req, res) {
+    app.post("/login", async (req, res) => {
+        const { Email, Password } = req.body;
+    
+        if (!Email || !Password) {
+            return res.status(400).json({ error: "Email and Password are required." });
         }
-
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(Password, 10);
-
-        // Insert the new user into the database
-    const newUser = await pool.query(
-        "INSERT INTO users (UserId, FirstName, LastName, Email, Password) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-
-            [UserId, FirstName, LastName, Email, hashedPassword]
-        );
-
-        // Return the created user
-        return res.status(201).json(newUser.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Database error." });
-    }
-});
-
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}.`);
-});
+    
+        try {
+            // Check for existing user with the provided email
+            const userCheck = await pool.query("SELECT * FROM \"users\" WHERE \"Email\" = $1", [Email]);
+            if (userCheck.rows.length === 0) {
+                return res.status(401).json({ error: "Invalid email or password." });
+            }
+    
+            const user = userCheck.rows[0];
+    
+            // Compare the provided password with the hashed password
+            const isPasswordValid = await bcrypt.compare(Password, user.Password);
+            if (!isPasswordValid) {
+                return res.status(401).json({ error: "Invalid email or password." });
+            }
+    
+            // If login is successful, you can return user data or a token
+            // For simplicity, we'll return the user data (excluding the password)
+            const { Password: _, ...userData } = user; // Exclude password from response
+            return res.status(200).json(userData);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({ error: "Internal Server Error" });
+        }
+    });
+}
+// POST route to login a user
