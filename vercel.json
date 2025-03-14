@@ -23,7 +23,7 @@
       },
       {
         "src": "/(.*)",
-        "dest": "api/userregistration.js"
+        "dest": "api/index.js"
       }
       
     ]
