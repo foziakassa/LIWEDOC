@@ -18,8 +18,12 @@
         "dest": "api/products.js"
       },
       {
+        "src": "api/login",
+        "dest": "api/login.js"
+      },
+      {
         "src": "/(.*)",
-        "dest": "api/index.js"
+        "dest": "api/userregistration.js"
       }
       
     ]
