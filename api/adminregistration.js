@@ -61,3 +61,6 @@ app.post("/adminregistration", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}.`);
+});
