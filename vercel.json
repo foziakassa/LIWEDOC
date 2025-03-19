@@ -14,7 +14,7 @@
         "dest": "api/users.js"
       },
       {
-        "src": "api/products",
+        "src": "/api/products",
         "dest": "api/products.js"
       },
       {
