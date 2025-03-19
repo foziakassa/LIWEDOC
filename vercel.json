@@ -22,8 +22,16 @@
         "dest": "api/login.js"
       },
       {
+        "src": "/api/adminregistration",
+        "dest": "api/adminregistration.js"
+      },
+      {
+        "src": "/api/adminlogin",
+        "dest": "api/adminlogin.js"
+      },
+      {
         "src": "/(.*)",
-        "dest": "api/userregistration.js"
+        "dest": "api/adminregistration.js"
       }
       
     ]
