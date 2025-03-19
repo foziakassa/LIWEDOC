@@ -31,7 +31,7 @@
       },
       {
         "src": "/(.*)",
-        "dest": "api/adminregistration.js"
+        "dest": "api/adminlogin.js"
       }
       
     ]
