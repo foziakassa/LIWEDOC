@@ -28,6 +28,10 @@
       {
         "src": "/api/adminlogin",
         "dest": "api/adminlogin.js"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "api/userregistration.js"
       }
       
     ]
