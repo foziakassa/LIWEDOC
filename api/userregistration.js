@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 // PostgreSQL connection setup
 const pool = new Pool({
     // connectionString: process.env.DATABASE_URL,
-    connectionString: process.env.bd_url,
+    connectionString: process.env.DATABASE_URL,
 
     ssl: {
         rejectUnauthorized: false,
