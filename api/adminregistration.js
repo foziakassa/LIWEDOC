@@ -16,9 +16,9 @@ const pool = new Pool({
 // Handler function for admin registration
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { Firstname, Lastname, Email, Password } = req.body;
+        const { Firstname, Lastname, Email, Password , Role } = req.body;
 
-        if (!Firstname || !Lastname || !Email || !Password) {
+        if (!Firstname || !Lastname || !Email || !Password || !Role) {
             return res.status(400).json({ error: "All fields are required." });
         }
 
@@ -31,8 +31,8 @@ export default async function handler(req, res) {
 
             const hashedPassword = await bcrypt.hash(Password, 10);
             const newUser  = await pool.query(
-                "INSERT INTO \"admin\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
-                [Firstname, Lastname, Email, hashedPassword]
+                "INSERT INTO \"admin\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\" , \"Role\") VALUES ($1, $2, $3, $4) RETURNING *",
+                [Firstname, Lastname, Email, hashedPassword , Role]
             );
 
             return res.status(201).json(newUser .rows[0]);
