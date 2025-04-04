@@ -34,9 +34,12 @@ export default async function handler(req, res) {
                 return res.status(401).json({ error: "Invalid email or password." });
             }
 
-            // If login is successful, return user data (excluding the password)
+            // If login is successful, return user data (including role)
             const { Password: _, ...userData } = user; // Exclude password from response
-            return res.status(200).json(userData);
+            return res.status(200).json({
+                ...userData,
+                role: user.role // Include role in the response
+            });
         } catch (err) {
             console.error(err);
             return res.status(500).json({ error: "Internal Server Error" });
