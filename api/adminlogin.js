@@ -38,7 +38,7 @@ export default async function handler(req, res) {
             const { Password: _, ...userData } = user; // Exclude password from response
             return res.status(200).json({
                 ...userData,
-                role: user.role // Include role in the response
+                Role: user.Role // Include role in the response
             });
         } catch (err) {
             console.error(err);
