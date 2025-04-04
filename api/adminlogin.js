@@ -1,9 +1,17 @@
-// api/users.js
 import pool from './db'; // Ensure this is the correct path to your db module
 import bcrypt from 'bcrypt';
-//jjj
 
 export default async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Allow requests from this origin
+    res.setHeader('Access-Control-Allow-Methods', 'POST'); // Allow POST requests
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); // Allow Content-Type header
+
+    if (req.method === 'OPTIONS') {
+        // Handle preflight request
+        return res.status(200).end();
+    }
+
     if (req.method === 'POST') {
         const { Email, Password } = req.body;
 
@@ -39,6 +47,3 @@ export default async function handler(req, res) {
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }
-
-
-
