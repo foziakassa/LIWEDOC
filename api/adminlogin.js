@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 export default async function handler(req, res) {
     // Set CORS headers dynamically
     const allowedOrigins = process.env.NODE_ENV === 'production' 
-        ? ['https://lwiedashboard.vercel.app/login'] // Replace with your actual production URL
+        ? ['https://lwiedashboard-h27u.vercel.app/login'] // Replace with your actual production URL
         : ['http://localhost:3000'];
 
     res.setHeader('Access-Control-Allow-Origin', allowedOrigins.join(', '));
