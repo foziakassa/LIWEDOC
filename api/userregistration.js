@@ -38,9 +38,9 @@ app.get("/users",  (req, res) => {
 
 // POST route to create a new user
 app.post("/users", async (req, res) => {
-    const { Firstname, Lastname, Email, Password , Role } = req.body;
+    const { Firstname, Lastname, Email, Password } = req.body;
 
-    if (!Firstname || !Lastname || !Email || !Password || !Role) {
+    if (!Firstname || !Lastname || !Email || !Password) {
         return res.status(400).json({ error: "All fields are required." });
     }
 
@@ -53,8 +53,8 @@ app.post("/users", async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(Password, 10);
         const newUser = await pool.query(
-            "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\", \"Role\") VALUES ($1, $2, $3, $4) RETURNING *",
-            [Firstname, Lastname, Email, hashedPassword , Role]
+            "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
+            [Firstname, Lastname, Email, hashedPassword]
         );
 
         return res.status(201).json(newUser.rows[0]);
