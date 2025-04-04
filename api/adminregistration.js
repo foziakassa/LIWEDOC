@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
             const hashedPassword = await bcrypt.hash(Password, 10);
             const newUser  = await pool.query(
-                "INSERT INTO \"admin\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\" , \"Role\") VALUES ($1, $2, $3, $4) RETURNING *",
+                "INSERT INTO \"admin\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\" , \"Role\") VALUES ($1, $2, $3, $4 , $5) RETURNING *",
                 [Firstname, Lastname, Email, hashedPassword , Role]
             );
 
