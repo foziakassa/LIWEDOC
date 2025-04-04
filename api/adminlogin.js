@@ -2,12 +2,8 @@ import pool from './db'; // Ensure this is the correct path to your db module
 import bcrypt from 'bcrypt';
 
 export default async function handler(req, res) {
-    // Set CORS headers dynamically
-    const allowedOrigins = process.env.NODE_ENV === 'production' 
-        ? ['https://lwiedashboard-h27u.vercel.app/login'] // Replace with your actual production URL
-        : ['http://localhost:3000'];
-
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigins.join(', '));
+    // Allow access from any origin
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
