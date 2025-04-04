@@ -38,9 +38,9 @@ app.get("/users",  (req, res) => {
 
 // POST route to create a new user
 app.post("/users", async (req, res) => {
-    const { Firstname, Lastname, Email, Password } = req.body;
+    const { Firstname, Lastname, Email, Password , Role } = req.body;
 
-    if (!Firstname || !Lastname || !Email || !Password) {
+    if (!Firstname || !Lastname || !Email || !Password || !Role) {
         return res.status(400).json({ error: "All fields are required." });
     }
 
