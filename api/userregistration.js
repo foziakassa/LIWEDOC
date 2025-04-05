@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
+const cors = require("cors"); // Include CORS package
 require("dotenv").config();
 
 const app = express();
@@ -9,15 +10,14 @@ const PORT = process.env.PORT || 3000;
 
 // PostgreSQL connection setup
 const pool = new Pool({
-    // connectionString: process.env.DATABASE_URL,
     connectionString: process.env.DATABASE_URL,
-
     ssl: {
         rejectUnauthorized: false,
     },
 });
 
-// Middleware to parse JSON bodies
+// Middleware to use CORS
+app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json());
 
 // Test database connection
@@ -31,9 +31,8 @@ pool.connect()
     });
 
 // GET route to retrieve all users
-// GET route to retrieve all users
 app.get("/users",  (req, res) => {
-   res.send("hi there")
+    res.send("hi there");
 });
 
 // POST route to create a new user
@@ -63,10 +62,8 @@ app.post("/users", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
-
-
-
