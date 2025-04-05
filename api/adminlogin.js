@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
         try {
             // Check for existing user with the provided email
-            const userCheck = await pool.query("SELECT * FROM \"admin\" WHERE \"Email\" = $1", [Email]);
+            const userCheck = await pool.query("SELECT * FROM \"admins\" WHERE \"Email\" = $1", [Email]);
             if (userCheck.rows.length === 0) {
                 return res.status(401).json({ error: "Invalid email or password." });
             }

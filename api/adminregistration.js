@@ -24,14 +24,14 @@ export default async function handler(req, res) {
 
         try {
             // Check for existing user with the provided email
-            const userCheck = await pool.query("SELECT * FROM \"admin\" WHERE \"Email\" = $1", [Email]);
+            const userCheck = await pool.query("SELECT * FROM \"admins\" WHERE \"Email\" = $1", [Email]);
             if (userCheck.rows.length > 0) {
                 return res.status(400).json({ error: "User  already exists." });
             }
 
             const hashedPassword = await bcrypt.hash(Password, 10);
             const newUser  = await pool.query(
-                "INSERT INTO \"admin\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\" , \"Role\") VALUES ($1, $2, $3, $4 , $5) RETURNING *",
+                "INSERT INTO \"admins\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\" , \"Role\") VALUES ($1, $2, $3, $4 , $5) RETURNING *",
                 [Firstname, Lastname, Email, hashedPassword , Role]
             );
 
