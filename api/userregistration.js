@@ -45,14 +45,14 @@ app.post("/users", async (req, res) => {
 
     try {
         // Check for existing user with lowercase email
-        const userCheck = await pool.query("SELECT * FROM \"users\" WHERE \"Email\" = $1", [Email]);
+        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
         }
 
         const hashedPassword = await bcrypt.hash(Password, 10);
         const newUser = await pool.query(
-            "INSERT INTO \"users\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
             [Firstname, Lastname, Email, hashedPassword]
         );
 
