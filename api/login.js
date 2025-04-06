@@ -3,6 +3,15 @@ import pool from './db'; // Ensure this is the correct path to your db module
 import bcrypt from 'bcrypt';
 
 export default async function handler(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        // Handle preflight request
+        return res.status(200).end();
+    }
+
     if (req.method === 'POST') {
         const { Email, Password } = req.body;
 
