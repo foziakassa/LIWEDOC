@@ -4,7 +4,7 @@ import pool from './db';
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
-      const result = await pool.query('SELECT * FROM "users"'); // Query to select all users
+      const result = await pool.query('SELECT * FROM "user"'); // Query to select all users
       res.status(200).json(result.rows); // Send the users as a JSON response
     } catch (error) {
       console.error(error);
