@@ -1,38 +1,47 @@
-
-
-  {
-    "version": 2,
-    "builds": [
-      {
-        "src": "api/*.js",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/api/users",
-        "dest": "api/users.js"
-      },
-      {
-        "src": "/api/products",
-        "dest": "api/products.js"
-      },
-      {
-        "src": "/api/login",
-        "dest": "api/login.js"
-      },
-      {
-        "src": "/api/adminregistration",
-        "dest": "api/adminregistration.js"
-      },
-      {
-        "src": "/api/adminlogin",
-        "dest": "api/adminlogin.js"
-      },
-      {
-        "src": "/(.*)",
-        "dest": "api/userregistration.js"
-      }
-      
-    ]
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/users",
+      "dest": "api/users.js"
+    },
+    {
+      "src": "/api/products",
+      "dest": "api/products.js"
+    },
+    {
+      "src": "/api/login",
+      "dest": "api/login.js"
+    },
+    {
+      "src": "/api/adminregistration",
+      "dest": "api/adminregistration.js"
+    },
+    {
+      "src": "/api/adminlogin",
+      "dest": "api/adminlogin.js"
+    },
+    {
+      "src": "/api/items",
+      "dest": "api/items.js"
+    },
+    {
+      "src": "/api/services",
+      "dest": "api/services.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/userregistration.js"
+    }
+  ],
+  "env": {
+    "JWT_SECRET": "your_secure_jwt_secret_here", 
+    "DATABASE_URL": "your_postgres_url_here"     
   }
+}
