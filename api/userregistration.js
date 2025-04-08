@@ -36,8 +36,14 @@ pool.connect()
     });
 
 // GET route to retrieve all users
-app.get("/users", (req, res) => {
-    res.send("hi there");
+app.get("/users", async (req, res) => {
+    try {
+        const users = await pool.query("SELECT * FROM \"user\" WHERE \"DeletedAt\" IS NULL");
+        res.status(200).json(users.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 // POST route to create a new user
@@ -56,7 +62,7 @@ app.post("/users", async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(Password, 10);
         const newUser = await pool.query(
-            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\", \"CreatedAt\") VALUES ($1, $2, $3, $4, NOW()) RETURNING *",
             [Firstname, Lastname, Email, hashedPassword]
         );
 
@@ -95,6 +101,7 @@ app.post("/users/image", upload.single('image'), async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 // Start the server
 app.listen(PORT, () => {
