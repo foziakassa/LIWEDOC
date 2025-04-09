@@ -9,6 +9,8 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+console.log("Connecting to database with URL:", process.env.DATABASE_URL);
+
 // PostgreSQL connection setup
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
