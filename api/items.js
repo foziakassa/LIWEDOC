@@ -1,91 +1,111 @@
-import pool from './db';
-import jwt from 'jsonwebtoken';
+const express = require("express");
+const bodyParser = require("body-parser");
+const { Pool } = require("pg");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
+const multer = require("multer"); // Include multer for file uploads
+require("dotenv").config();
 
-export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+console.log("Connecting to database with URL:", process.env.DATABASE_URL);
 
-  // JWT Authentication
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token && req.method !== 'GET') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+// PostgreSQL connection setup
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false,
+    },
+});
 
-  try {
-    if (req.method === 'POST') {
-      // Verify JWT for write operations
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
+// Middleware to use CORS
+app.use(cors());
+app.use(bodyParser.json());
 
-      const {
-        title,
-        category_id,
-        description,
-        condition,
-        location
-      } = req.body;
-      // gfhtrugjjf
-      const result = await pool.query(
-        `INSERT INTO items (
-          user_id, title, category_id, description, 
-          condition, location, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'draft')
-        RETURNING *`,
-        [userId, title, category_id, description, condition, location]
-      );
+// Multer setup for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-      return res.status(201).json(result.rows[0]);
+// Test database connection
+pool.connect()
+    .then(client => {
+        console.log("Connected to the database.");
+        client.release();
+    })
+    .catch(err => {
+        console.error("Database connection error:", err);
+    });
 
-    } else if (req.method === 'GET') {
-      // Public access for listing
-      const { category_id } = req.query;
-      let query = 'SELECT * FROM items WHERE status = $1';
-      const params = ['published'];
+// GET route to retrieve all users
+app.get("/users", async (req, res) => {
+    try {
+        const users = await pool.query("SELECT * FROM \"user\" WHERE \"DeletedAt\" IS NULL");
+        res.status(200).json(users.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 
-      if (category_id) {
-        query += ' AND category_id = $2';
-        params.push(category_id);
-      }
+// POST route to create a new user
+app.post("/users", async (req, res) => {
+    const { Firstname, Lastname, Email, Password } = req.body;
 
-      const result = await pool.query(query, params);
-      return res.json(result.rows);
-
-    } else if (req.method === 'PUT') {
-      // Verify JWT
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
-      const { id, ...updates } = req.body;
-      const setClause = Object.keys(updates)
-        .map((key, i) => `"${key}" = $${i + 1}`)
-        .join(', ');
-
-      const values = [...Object.values(updates), id, userId];
-
-      const result = await pool.query(
-        `UPDATE items SET ${setClause} 
-         WHERE id = $${values.length - 1} AND user_id = $${values.length}
-         RETURNING *`,
-        values
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Item not found or unauthorized' });
-      }
-
-      return res.json(result.rows[0]);
+    if (!Firstname || !Lastname || !Email || !Password) {
+        return res.status(400).json({ error: "All fields are required." });
     }
 
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    try {
+        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
+        if (userCheck.rows.length > 0) {
+            return res.status(400).json({ error: "User already exists." });
+        }
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: err.message });
-  }
-}
+        const hashedPassword = await bcrypt.hash(Password, 10);
+        const newUser = await pool.query(
+            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\", \"Createdat\") VALUES ($1, $2, $3, $4, NOW()) RETURNING *",
+            [Firstname, Lastname, Email, hashedPassword]
+        );
+
+        return res.status(201).json(newUser.rows[0]);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// POST route to upload an image for a user
+app.post("/users/image", upload.single('image'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "No image provided." });
+    }
+
+    const email = req.body.Email;
+
+    try {
+        // Check if the user exists based on Email
+        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [email]);
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        // Update the user's image
+        const imageData = req.file.buffer;
+        const updatedUser = await pool.query(
+            "UPDATE \"user\" SET \"Image\" = $1 WHERE \"Email\" = $2 RETURNING *",
+            [imageData, email]
+        );
+
+        return res.status(200).json(updatedUser.rows[0]);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}.`);
+});
