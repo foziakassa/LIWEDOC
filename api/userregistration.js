@@ -2,14 +2,11 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
-const cors = require("cors");
-const multer = require("multer"); // Include multer for file uploads
+const cors = require("cors"); // Include CORS package
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-console.log("Connecting to database with URL:", process.env.DATABASE_URL);
 
 // PostgreSQL connection setup
 const pool = new Pool({
@@ -20,12 +17,8 @@ const pool = new Pool({
 });
 
 // Middleware to use CORS
-app.use(cors());
+app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json());
-
-// Multer setup for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
 // Test database connection
 pool.connect()
@@ -38,14 +31,8 @@ pool.connect()
     });
 
 // GET route to retrieve all users
-app.get("/users", async (req, res) => {
-    try {
-        const users = await pool.query("SELECT * FROM \"user\" WHERE \"DeletedAt\" IS NULL");
-        res.status(200).json(users.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
+app.get("/users",  (req, res) => {
+    res.send("hi there");
 });
 
 // POST route to create a new user
@@ -57,6 +44,7 @@ app.post("/users", async (req, res) => {
     }
 
     try {
+        // Check for existing user with lowercase email
         const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: "User already exists." });
@@ -64,7 +52,7 @@ app.post("/users", async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(Password, 10);
         const newUser = await pool.query(
-            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\", \"Createdat\") VALUES ($1, $2, $3, $4, NOW()) RETURNING *",
+            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\") VALUES ($1, $2, $3, $4) RETURNING *",
             [Firstname, Lastname, Email, hashedPassword]
         );
 
@@ -74,36 +62,6 @@ app.post("/users", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
-// POST route to upload an image for a user
-app.post("/users/image", upload.single('image'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: "No image provided." });
-    }
-
-    const email = req.body.Email;
-
-    try {
-        // Check if the user exists based on Email
-        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [email]);
-        if (userCheck.rows.length === 0) {
-            return res.status(404).json({ error: "User not found." });
-        }
-
-        // Update the user's image
-        const imageData = req.file.buffer;
-        const updatedUser = await pool.query(
-            "UPDATE \"user\" SET \"Image\" = $1 WHERE \"Email\" = $2 RETURNING *",
-            [imageData, email]
-        );
-
-        return res.status(200).json(updatedUser.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Internal Server Error" });
-    }
-});
-
 
 // Start the server
 app.listen(PORT, () => {
