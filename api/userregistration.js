@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER, // Your Gmail address
-        pass: process.env.EMAIL_PASS    // Your app password
+        pass: 'heen oxfi tpuq vezd'   // Your app password
     }
 });
 
