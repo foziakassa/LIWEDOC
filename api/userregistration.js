@@ -127,7 +127,7 @@ app.get("/activate/:token", async (req, res) => {
         const userId = result.rows[0].Userid;
 
         // Activate the user by updating the user's record
-        await pool.query("UPDATE \"user\" SET \"IsActive\" = true WHERE \"Userid\" = $1", [userId]);
+        await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"Userid\" = $1", [userId]);
 
         // Optionally, delete the token from ActivationToken table
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
