@@ -79,7 +79,7 @@ app.post("/users", async (req, res) => {
 
         console.log("New user created:", newUser.rows[0]); // Log the created user
 
-        if (!newUser.rows[0].id) {
+        if (!newUser.rows[0].Userid) {
             return res.status(500).json({ error: "User creation failed, ID not found." });
         }
 
