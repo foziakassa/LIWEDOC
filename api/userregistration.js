@@ -3,11 +3,24 @@ const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
-const multer = require("multer"); // Include multer for file uploads
+const multer = require("multer");
 require("dotenv").config();
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+console.log("Connecting to database with URL:", process.env.DATABASE_URL);
+
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
 // PostgreSQL connection setup
 const pool = new Pool({
@@ -17,11 +30,9 @@ const pool = new Pool({
     },
 });
 
-// Middleware to use CORS
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-
-// Multer setup for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -66,44 +77,64 @@ app.post("/users", async (req, res) => {
             [Firstname, Lastname, Email, hashedPassword]
         );
 
-        return res.status(201).json(newUser.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Internal Server Error" });
-    }
-});
+        console.log("New user created:", newUser.rows[0]); // Logging the created user
 
-// POST route to upload an image for a user
-app.post("/users/image", upload.single('image'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: "No image provided." });
-    }
-
-    const email = req.body.Email;
-
-    try {
-        // Check if the user exists based on Email
-        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [email]);
-        if (userCheck.rows.length === 0) {
-            return res.status(404).json({ error: "User not found." });
+        if (!newUser.rows[0].Userid) {
+            return res.status(500).json({ error: "User creation failed, ID not found." });
         }
 
-        // Update the user's image
-        const imageData = req.file.buffer;
-        const updatedUser = await pool.query(
-            "UPDATE \"user\" SET \"Image\" = $1 WHERE \"Email\" = $2 RETURNING *",
-            [imageData, email]
+        // Generate an activation token
+        const token = crypto.randomBytes(20).toString('hex');
+
+        // Store the token in ActivationToken table using the correct key
+        await pool.query(
+            "INSERT INTO \"ActivationToken\" (\"Userid\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
+            [newUser.rows[0].Userid, token]  // Use 'Userid' here
         );
 
-        return res.status(200).json(updatedUser.rows[0]);
+        // Create the activation link using your production URL
+        const activationLink = `https://liwedoc.vercel.app/activate/${token}`;
+
+        // Send activation email
+        await transporter.sendMail({
+            to: Email,
+            subject: "Account Activation",
+            text: `Please activate your account by clicking the following link: ${activationLink}`
+        });
+
+        return res.status(201).json({ message: "User created. Please check your email to activate your account." });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+// Activation route
+app.get("/activate/:token", async (req, res) => {
+    const token = req.params.token;
 
+    try {
+        // Check if the token is valid and not expired
+        const result = await pool.query("SELECT * FROM \"ActivationToken\" WHERE \"Token\" = $1 AND \"Expiredat\" > NOW()", [token]);
 
-// Start the server
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: "Invalid or expired token." });
+        }
+
+        // Retrieve User ID from the token record
+        const userId = result.rows[0].Userid;
+
+        // Activate the user by updating the user's record
+        await pool.query("UPDATE \"user\" SET \"IsActive\" = true WHERE \"id\" = $1", [userId]);
+
+        // Optionally, delete the token from ActivationToken table
+        await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
+
+        return res.status(200).json({ message: "Your account has been activated. You can now log in." });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });

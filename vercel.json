@@ -39,9 +39,6 @@
       "src": "/(.*)",
       "dest": "api/userregistration.js"
     }
-  ],
-  "env": {
-    "JWT_SECRET": "your_secure_jwt_secret_here", 
-    "DATABASE_URL": "your_postgres_url_here"     
-  }
+  ]
+  
 }
