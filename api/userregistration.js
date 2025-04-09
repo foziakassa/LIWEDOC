@@ -77,6 +77,12 @@ app.post("/users", async (req, res) => {
             [Firstname, Lastname, Email, hashedPassword]
         );
 
+        console.log("New user created:", newUser.rows[0]); // Log the created user
+
+        if (!newUser.rows[0].id) {
+            return res.status(500).json({ error: "User creation failed, ID not found." });
+        }
+
         // Generate an activation token
         const token = crypto.randomBytes(20).toString('hex');
 
@@ -95,6 +101,8 @@ app.post("/users", async (req, res) => {
             subject: "Account Activation",
             text: `Please activate your account by clicking the following link: ${activationLink}`
         });
+
+        // return res.status(201).json({ message: "User created. Please
 
         return res.status(201).json({ message: "User created. Please check your email to activate your account." });
     } catch (err) {
