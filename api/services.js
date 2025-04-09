@@ -1,88 +1,77 @@
-import pool from './db';
-import jwt from 'jsonwebtoken';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // JWT Authentication
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token && req.method !== 'GET') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    // CREATE SERVICE
     if (req.method === 'POST') {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
       const {
+        user_id,
         title,
         category_id,
         description,
         hourly_rate,
-        location
+        location,
+        time_estimation,
+        time_unit,
+        cancellation_policy
       } = req.body;
 
       const result = await pool.query(
         `INSERT INTO services (
           user_id, title, category_id, description,
-          hourly_rate, location, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'draft')
+          hourly_rate, location, status,
+          time_estimation, time_unit, cancellation_policy
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9)
         RETURNING *`,
-        [userId, title, category_id, description, hourly_rate, location]
+        [
+          user_id, title, category_id, description,
+          hourly_rate, location,
+          time_estimation, time_unit, cancellation_policy
+        ]
       );
 
       return res.status(201).json(result.rows[0]);
+    }
 
-    } else if (req.method === 'GET') {
-      const { category_id } = req.query;
-      let query = 'SELECT * FROM services WHERE status = $1';
-      const params = ['published'];
+    // GET ALL SERVICES
+    if (req.method === 'GET') {
+      const { category_id, user_id } = req.query;
+      let query = `SELECT * FROM services WHERE status = 'published'`;
+      const params = [];
 
       if (category_id) {
-        query += ' AND category_id = $2';
+        query += ' AND category_id = $1';
         params.push(category_id);
+      }
+      if (user_id) {
+        query += (params.length ? ' AND' : ' WHERE') + ' user_id = $' + (params.length + 1);
+        params.push(user_id);
       }
 
       const result = await pool.query(query, params);
-      return res.json(result.rows);
-
-    } else if (req.method === 'PUT') {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
-      const { id, ...updates } = req.body;
-      const setClause = Object.keys(updates)
-        .map((key, i) => `"${key}" = $${i + 1}`)
-        .join(', ');
-
-      const values = [...Object.values(updates), id, userId];
-
-      const result = await pool.query(
-        `UPDATE services SET ${setClause} 
-         WHERE id = $${values.length - 1} AND user_id = $${values.length}
-         RETURNING *`,
-        values
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Service not found or unauthorized' });
-      }
-
-      return res.json(result.rows[0]);
+      return res.status(200).json(result.rows);
     }
 
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: err.message });
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 }

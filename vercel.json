@@ -36,6 +36,14 @@
       "dest": "api/services.js"
     },
     {
+      "src": "/api/edit-item",
+      "dest": "api/edit-item.js"
+    },
+    {
+      "src": "/api/edit-service",
+      "dest": "api/edit-service.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/userregistration.js"
     }

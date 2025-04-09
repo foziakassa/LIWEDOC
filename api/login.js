@@ -1,6 +1,5 @@
 import pool from './db';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,15 +34,8 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: "Invalid email or password." });
       }
 
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: user.id, email: user.Email },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
       const { Password: _, ...userData } = user;
-      return res.status(200).json({ ...userData, token });
+      return res.status(200).json(userData);
 
     } catch (err) {
       console.error(err);

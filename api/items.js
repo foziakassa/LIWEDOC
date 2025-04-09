@@ -1,91 +1,99 @@
-import pool from './db';
-import jwt from 'jsonwebtoken';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // JWT Authentication
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token && req.method !== 'GET') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    // CREATE ITEM
     if (req.method === 'POST') {
-      // Verify JWT for write operations
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
       const {
+        user_id,
         title,
         category_id,
         description,
         condition,
-        location
+        location,
+        brand,
+        model,
+        year,
+        specifications
       } = req.body;
-      // gfhtrugjjf
-      const result = await pool.query(
+
+      await pool.query('BEGIN');
+
+      // Insert main item
+      const itemResult = await pool.query(
         `INSERT INTO items (
           user_id, title, category_id, description, 
           condition, location, status
         ) VALUES ($1, $2, $3, $4, $5, $6, 'draft')
         RETURNING *`,
-        [userId, title, category_id, description, condition, location]
+        [user_id, title, category_id, description, condition, location]
       );
 
-      return res.status(201).json(result.rows[0]);
+      // Insert specifications
+      await pool.query(
+        `INSERT INTO item_specifications (
+          item_id, brand, model, year, specifications
+        ) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          itemResult.rows[0].id,
+          brand,
+          model,
+          year,
+          JSON.stringify(specifications || {})
+        ]
+      );
 
-    } else if (req.method === 'GET') {
-      // Public access for listing
-      const { category_id } = req.query;
-      let query = 'SELECT * FROM items WHERE status = $1';
-      const params = ['published'];
+      await pool.query('COMMIT');
+      return res.status(201).json(itemResult.rows[0]);
+    }
+
+    // GET ALL ITEMS
+    if (req.method === 'GET') {
+      const { category_id, user_id } = req.query;
+      let query = `SELECT items.*, 
+                  item_specifications.brand,
+                  item_specifications.model,
+                  item_specifications.year,
+                  item_specifications.specifications
+                  FROM items
+                  LEFT JOIN item_specifications ON items.id = item_specifications.item_id
+                  WHERE status = 'published'`;
+      const params = [];
 
       if (category_id) {
-        query += ' AND category_id = $2';
+        query += ' AND category_id = $1';
         params.push(category_id);
+      }
+      if (user_id) {
+        query += (params.length ? ' AND' : ' WHERE') + ' user_id = $' + (params.length + 1);
+        params.push(user_id);
       }
 
       const result = await pool.query(query, params);
-      return res.json(result.rows);
-
-    } else if (req.method === 'PUT') {
-      // Verify JWT
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
-      const { id, ...updates } = req.body;
-      const setClause = Object.keys(updates)
-        .map((key, i) => `"${key}" = $${i + 1}`)
-        .join(', ');
-
-      const values = [...Object.values(updates), id, userId];
-
-      const result = await pool.query(
-        `UPDATE items SET ${setClause} 
-         WHERE id = $${values.length - 1} AND user_id = $${values.length}
-         RETURNING *`,
-        values
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Item not found or unauthorized' });
-      }
-
-      return res.json(result.rows[0]);
+      return res.status(200).json(result.rows);
     }
 
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: err.message });
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 }
