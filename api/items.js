@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         condition,
         location
       } = req.body;
-
+      // gfhtrugjjf
       const result = await pool.query(
         `INSERT INTO items (
           user_id, title, category_id, description, 
