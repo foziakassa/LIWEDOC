@@ -77,7 +77,7 @@ app.post("/users", async (req, res) => {
             [Firstname, Lastname, Email, hashedPassword]
         );
 
-        console.log("New user created:", newUser.rows[0]); // Log the created user
+        console.log("New user created:", newUser.rows[0]); // Logging the created user
 
         if (!newUser.rows[0].Userid) {
             return res.status(500).json({ error: "User creation failed, ID not found." });
@@ -86,10 +86,10 @@ app.post("/users", async (req, res) => {
         // Generate an activation token
         const token = crypto.randomBytes(20).toString('hex');
 
-        // Store the token in ActivationToken table
+        // Store the token in ActivationToken table using the correct key
         await pool.query(
             "INSERT INTO \"ActivationToken\" (\"Userid\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
-            [newUser.rows[0].id, token]
+            [newUser.rows[0].Userid, token]  // Use 'Userid' here
         );
 
         // Create the activation link using your production URL
@@ -102,15 +102,12 @@ app.post("/users", async (req, res) => {
             text: `Please activate your account by clicking the following link: ${activationLink}`
         });
 
-        // return res.status(201).json({ message: "User created. Please
-
         return res.status(201).json({ message: "User created. Please check your email to activate your account." });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 // Activation route
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
