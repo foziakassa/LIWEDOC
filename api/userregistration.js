@@ -17,8 +17,8 @@ console.log("Connecting to database with URL:", process.env.DATABASE_URL);
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.EMAIL_USER, // Your Gmail address
+        pass: process.env.EMAIL_PASS    // Your app password
     }
 });
 
@@ -68,19 +68,19 @@ app.post("/users", async (req, res) => {
     try {
         const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
         if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "User already exists." });
+            return res.status(400).json({ error: "User  already exists." });
         }
 
         const hashedPassword = await bcrypt.hash(Password, 10);
-        const newUser = await pool.query(
+        const newUser  = await pool.query(
             "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\", \"Createdat\") VALUES ($1, $2, $3, $4, NOW()) RETURNING *",
             [Firstname, Lastname, Email, hashedPassword]
         );
 
-        console.log("New user created:", newUser.rows[0]); // Logging the created user
+        console.log("New user created:", newUser .rows[0]); // Logging the created user
 
-        if (!newUser.rows[0].Userid) {
-            return res.status(500).json({ error: "User creation failed, ID not found." });
+        if (!newUser .rows[0].Userid) {
+            return res.status(500).json({ error: "User  creation failed, ID not found." });
         }
 
         // Generate an activation token
@@ -89,7 +89,7 @@ app.post("/users", async (req, res) => {
         // Store the token in ActivationToken table using the correct key
         await pool.query(
             "INSERT INTO \"ActivationToken\" (\"Userid\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
-            [newUser.rows[0].Userid, token]  // Use 'Userid' here
+            [newUser .rows[0].Userid, token]  // Use 'Userid' here
         );
 
         // Create the activation link using your production URL
@@ -102,12 +102,13 @@ app.post("/users", async (req, res) => {
             text: `Please activate your account by clicking the following link: ${activationLink}`
         });
 
-        return res.status(201).json({ message: "User created. Please check your email to activate your account." });
+        return res.status(201).json({ message: "User  created. Please check your email to activate your account." });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 // Activation route
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
@@ -124,7 +125,7 @@ app.get("/activate/:token", async (req, res) => {
         const userId = result.rows[0].Userid;
 
         // Activate the user by updating the user's record
-        await pool.query("UPDATE \"user\" SET \"IsActive\" = true WHERE \"id\" = $1", [userId]);
+        await pool.query("UPDATE \"user\" SET \"IsActive\" = true WHERE \"Userid\" = $1", [userId]);
 
         // Optionally, delete the token from ActivationToken table
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
@@ -135,6 +136,7 @@ app.get("/activate/:token", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
