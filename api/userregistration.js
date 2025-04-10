@@ -114,23 +114,27 @@ app.post("/users", async (req, res) => {
     }
 });
 
-// Activation route
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
 
     try {
+        console.log("Activation token received:", token);
+
         // Check if the token is valid and not expired
         const result = await pool.query("SELECT * FROM \"ActivationToken\" WHERE \"Token\" = $1 AND \"Expiredat\" > NOW()", [token]);
-
+        console.log("Token query result:", result.rows);
+        
         if (result.rows.length === 0) {
             return res.status(400).json({ error: "Invalid or expired token." });
         }
 
         // Retrieve User ID from the token record
-        const id = result.rows[0].id;
+        const id = result.rows[0].Userid; // Ensure you reference the correct column here
+        console.log("User ID retrieved for activation:", id);
 
         // Activate the user by updating the user's record
-        await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"id\" = $1", [id]);
+        const updateResult = await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"id\" = $1", [id]);
+        console.log("Update result for user activation:", updateResult.rowCount);
 
         // Optionally, delete the token from ActivationToken table
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
