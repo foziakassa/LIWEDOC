@@ -82,7 +82,7 @@ app.post("/users", async (req, res) => {
 
         console.log("New user created:", newUser.rows[0]); // Logging the created user
 
-        if (!newUser.rows[0].Userid) {
+        if (!newUser.rows[0].id) {
             return res.status(500).json({ error: "User  creation failed, ID not found." });
         }
 
@@ -91,8 +91,8 @@ app.post("/users", async (req, res) => {
 
         // Store the token in ActivationToken table using the correct key
         await pool.query(
-            "INSERT INTO \"ActivationToken\" (\"Userid\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
-            [newUser.rows[0].Userid, token]  // Use 'Userid' here
+            "INSERT INTO \"ActivationToken\" (\"id\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
+            [newUser.rows[0].id, token]  // Use 'id' here
         );
 
         // Create the activation link using your production URL
@@ -127,10 +127,10 @@ app.get("/activate/:token", async (req, res) => {
         }
 
         // Retrieve User ID from the token record
-        const userId = result.rows[0].Userid;
+        const id = result.rows[0].id;
 
         // Activate the user by updating the user's record
-        await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"Userid\" = $1", [userId]);
+        await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"id\" = $1", [id]);
 
         // Optionally, delete the token from ActivationToken table
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
