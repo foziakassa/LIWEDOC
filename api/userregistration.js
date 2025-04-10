@@ -129,7 +129,7 @@ app.get("/activate/:token", async (req, res) => {
         }
 
         // Retrieve User ID from the token record
-        const id = result.rows[0].Userid; // Ensure you reference the correct column here
+        const id = result.rows[0].id; // Ensure you reference the correct column here
         console.log("User ID retrieved for activation:", id);
 
         // Activate the user by updating the user's record
