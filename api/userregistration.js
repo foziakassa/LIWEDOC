@@ -147,22 +147,21 @@ app.get("/activate/:token", async (req, res) => {
     console.log("Activation token received:", token);
 
     try {
+        console.log("Activation token received:", token);
+        // Check if the token is valid
         const result = await pool.query("SELECT * FROM \"ActivationToken\" WHERE \"Token\" = $1 AND \"Expiredat\" > NOW()", [token]);
-        
+
         if (result.rows.length === 0) {
-            console.error("No valid token found or token has expired.");
+            console.error("Invalid or expired token.");
             return res.status(400).json({ error: "Invalid or expired token." });
         }
 
-        const id = result.rows[0].id; // Ensure you reference the correct column here
-        console.log("User ID retrieved for activation:", id);
+        const userId = result.rows[0].id; // Ensure this is the correct ID
+        console.log("User ID retrieved for activation:", userId);
 
-        const updateResult = await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"id\" = $1", [id]);
-        console.log("Update result for user activation:", updateResult.rowCount);
-        
-        if (updateResult.rowCount === 0) {
-            return res.status(400).json({ error: "User activation failed. User may already be activated." });
-        }
+        // Attempt to update the user
+        const updateResult = await pool.query("UPDATE \"user\" SET \"activated\" = true WHERE \"id\" = $1", [userId]);
+        console.log("Update result row count:", updateResult.rowCount);
 
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
 
