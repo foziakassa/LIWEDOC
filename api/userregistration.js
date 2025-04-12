@@ -113,6 +113,33 @@ app.post("/users", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+app.post("/users/image", upload.single('image'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "No image provided." });
+    }
+
+    const email = req.body.Email;
+
+    try {
+        // Check if the user exists based on Email
+        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [email]);
+        if (userCheck.rows.length === 0) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        // Update the user's image
+        const imageData = req.file.buffer;
+        const updatedUser = await pool.query(
+            "UPDATE \"user\" SET \"Image\" = $1 WHERE \"Email\" = $2 RETURNING *",
+            [imageData, email]
+        );
+
+        return res.status(200).json(updatedUser.rows[0]);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
