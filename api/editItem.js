@@ -1,14 +1,8 @@
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+import pool from './db';
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -29,19 +23,20 @@ export default async function handler(req, res) {
       condition,
       location,
       status,
+      trade_type,
+      accept_cash,
       brand,
       model,
       year,
       specifications
     } = req.body;
 
-    if (!id || !user_id) {
-      return res.status(400).json({ error: 'Item ID and user ID are required' });
+    if (!id || !user_id || !title || !category_id || !condition || !location) {
+      return res.status(400).json({ error: 'Missing required fields.' });
     }
 
     await pool.query('BEGIN');
 
-    // Update main item
     const itemResult = await pool.query(
       `UPDATE items SET
         title = $1,
@@ -50,10 +45,23 @@ export default async function handler(req, res) {
         condition = $4,
         location = $5,
         status = $6,
+        trade_type = $7,
+        accept_cash = $8,
         updated_at = NOW()
-      WHERE id = $7 AND user_id = $8
+      WHERE id = $9 AND user_id = $10
       RETURNING *`,
-      [title, category_id, description, condition, location, status || 'draft', id, user_id]
+      [
+        title,
+        category_id,
+        description || null,
+        condition,
+        location,
+        status || 'draft',
+        trade_type || null,
+        accept_cash || false,
+        id,
+        user_id
+      ]
     );
 
     if (itemResult.rows.length === 0) {
@@ -61,7 +69,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Item not found or unauthorized' });
     }
 
-    // Update specifications
+    // Upsert into item_specifications
     await pool.query(
       `INSERT INTO item_specifications (
         item_id, brand, model, year, specifications
@@ -70,8 +78,15 @@ export default async function handler(req, res) {
         brand = EXCLUDED.brand,
         model = EXCLUDED.model,
         year = EXCLUDED.year,
-        specifications = EXCLUDED.specifications`,
-      [id, brand, model, year, JSON.stringify(specifications || {})]
+        specifications = EXCLUDED.specifications,
+        updated_at = NOW()`,
+      [
+        id,
+        brand || null,
+        model || null,
+        year || null,
+        specifications ? JSON.stringify(specifications) : null
+      ]
     );
 
     await pool.query('COMMIT');
