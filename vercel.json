@@ -36,17 +36,16 @@
       "dest": "api/services.js"
     },
     {
-      "src": "/api/edit-item",
-      "dest": "api/edit-item.js"
+      "src": "/api/editItem",
+      "dest": "api/editItem.js"
     },
     {
-      "src": "/api/edit-service",
-      "dest": "api/edit-service.js"
+      "src": "/api/editService",
+      "dest": "api/editService.js"
     },
     {
       "src": "/(.*)",
       "dest": "api/userregistration.js"
     }
   ]
-  
 }

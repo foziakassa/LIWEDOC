@@ -1,14 +1,8 @@
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+import pool from './db';
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -29,13 +23,14 @@ export default async function handler(req, res) {
       hourly_rate,
       location,
       status,
+      trade_type,
       time_estimation,
       time_unit,
       cancellation_policy
     } = req.body;
 
-    if (!id || !user_id) {
-      return res.status(400).json({ error: 'Service ID and user ID are required' });
+    if (!id || !user_id || !title || !category_id || !location) {
+      return res.status(400).json({ error: 'Missing required fields.' });
     }
 
     const result = await pool.query(
@@ -46,17 +41,26 @@ export default async function handler(req, res) {
         hourly_rate = $4,
         location = $5,
         status = $6,
-        time_estimation = $7,
-        time_unit = $8,
-        cancellation_policy = $9,
+        trade_type = $7,
+        time_estimation = $8,
+        time_unit = $9,
+        cancellation_policy = $10,
         updated_at = NOW()
-      WHERE id = $10 AND user_id = $11
+      WHERE id = $11 AND user_id = $12
       RETURNING *`,
       [
-        title, category_id, description,
-        hourly_rate, location, status || 'draft',
-        time_estimation, time_unit, cancellation_policy,
-        id, user_id
+        title,
+        category_id,
+        description || null,
+        hourly_rate || null,
+        location,
+        status || 'draft',
+        trade_type || null,
+        time_estimation || null,
+        time_unit || null,
+        cancellation_policy || null,
+        id,
+        user_id
       ]
     );
 

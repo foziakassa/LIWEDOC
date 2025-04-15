@@ -1,22 +1,13 @@
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+import pool from './db';
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // CREATE ITEM
     if (req.method === 'POST') {
       const {
         user_id,
@@ -25,23 +16,42 @@ export default async function handler(req, res) {
         description,
         condition,
         location,
+        trade_type,
+        accept_cash,
         brand,
         model,
         year,
-        specifications
+        specifications,
+        images,
       } = req.body;
+
+      // Required validation
+      if (!user_id || !title || !category_id || !condition || !location) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+      }
 
       await pool.query('BEGIN');
 
-      // Insert main item
+      // Insert item
       const itemResult = await pool.query(
         `INSERT INTO items (
-          user_id, title, category_id, description, 
-          condition, location, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'draft')
+          user_id, title, category_id, description, condition,
+          location, trade_type, accept_cash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *`,
-        [user_id, title, category_id, description, condition, location]
+        [
+          user_id,
+          title,
+          category_id,
+          description || null,
+          condition,
+          location,
+          trade_type || null,
+          accept_cash || false,
+        ]
       );
+
+      const itemId = itemResult.rows[0].id;
 
       // Insert specifications
       await pool.query(
@@ -49,51 +59,45 @@ export default async function handler(req, res) {
           item_id, brand, model, year, specifications
         ) VALUES ($1, $2, $3, $4, $5)`,
         [
-          itemResult.rows[0].id,
-          brand,
-          model,
-          year,
-          JSON.stringify(specifications || {})
+          itemId,
+          brand || null,
+          model || null,
+          year || null,
+          specifications ? JSON.stringify(specifications) : null,
         ]
       );
+
+      // Insert images
+      if (Array.isArray(images)) {
+        for (const img of images) {
+          await pool.query(
+            `INSERT INTO images (
+              entity_type, entity_id, url, is_main, uploaded_by
+            ) VALUES ('item', $1, $2, $3, $4)`,
+            [itemId, img.url, img.is_main || false, user_id]
+          );
+        }
+      }
 
       await pool.query('COMMIT');
       return res.status(201).json(itemResult.rows[0]);
     }
 
-    // GET ALL ITEMS
     if (req.method === 'GET') {
-      const { category_id, user_id } = req.query;
-      let query = `SELECT items.*, 
-                  item_specifications.brand,
-                  item_specifications.model,
-                  item_specifications.year,
-                  item_specifications.specifications
-                  FROM items
-                  LEFT JOIN item_specifications ON items.id = item_specifications.item_id
-                  WHERE status = 'published'`;
-      const params = [];
-
-      if (category_id) {
-        query += ' AND category_id = $1';
-        params.push(category_id);
-      }
-      if (user_id) {
-        query += (params.length ? ' AND' : ' WHERE') + ' user_id = $' + (params.length + 1);
-        params.push(user_id);
-      }
-
-      const result = await pool.query(query, params);
+      const result = await pool.query(`
+        SELECT i.*, c.name AS category_name
+        FROM items i
+        LEFT JOIN categories c ON i.category_id = c.id
+        WHERE i.status = 'published'
+        ORDER BY i.created_at DESC
+      `);
       return res.status(200).json(result.rows);
     }
 
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (error) {
     await pool.query('ROLLBACK');
-    console.error('Error:', error);
-    return res.status(500).json({
-      error: 'Internal server error',
-      details: error.message
-    });
+    console.error('Item API Error:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 }
