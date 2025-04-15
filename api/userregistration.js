@@ -52,7 +52,7 @@ pool.connect()
 // GET route to retrieve all users
 app.get("/users", async (req, res) => {
     try {
-        const users = await pool.query("SELECT * FROM \"user\" WHERE \"DeletedAt\" IS NULL");
+        const users = await pool.query("SELECT * FROM \"user\" WHERE \"Deletedat\" IS NULL");
         res.status(200).json(users.rows);
     } catch (err) {
         console.error(err);
