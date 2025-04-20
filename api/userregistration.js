@@ -222,6 +222,106 @@ app.delete("/users/:id", async (req, res) => {
     }
 });
 
+
+
+
+
+
+
+
+
+
+
+app.get("/charities", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM charities WHERE deleted_at IS NULL");
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// GET route to retrieve a charity by ID
+app.get("/charities/:id", async (req, res) => {
+    const charityId = req.params.id;
+
+    try {
+        const result = await pool.query("SELECT * FROM charities WHERE id = $1 AND deleted_at IS NULL", [charityId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Charity not found." });
+        }
+        res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// POST route to create a new charity
+app.post("/charities", async (req, res) => {
+    const { name, description, image, goal, location, needed } = req.body;
+
+    if (!name || !description || !goal || !location) {
+        return res.status(400).json({ error: "All fields are required." });
+    }
+
+    try {
+        const result = await pool.query(
+            "INSERT INTO charities (name, description, image, goal, location, needed, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *",
+            [name, description, image, goal, location, JSON.stringify(needed)]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// PUT route to update a charity
+app.put("/charities/:id", async (req, res) => {
+    const charityId = req.params.id;
+    const { name, description, image, goal, location, needed } = req.body;
+
+    try {
+        const result = await pool.query(
+            "UPDATE charities SET name = $1, description = $2, image = $3, goal = $4, location = $5, needed = $6 WHERE id = $7 RETURNING *",
+            [name, description, image, goal, location, JSON.stringify(needed), charityId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Charity not found." });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// DELETE route to soft delete a charity
+app.delete("/charities/:id", async (req, res) => {
+    const charityId = req.params.id;
+
+    try {
+        const result = await pool.query(
+            "UPDATE charities SET deleted_at = NOW() WHERE id = $1 RETURNING *",
+            [charityId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Charity not found." });
+        }
+
+        res.status(200).json({ message: "Charity deleted successfully." });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
