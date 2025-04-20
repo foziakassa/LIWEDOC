@@ -232,7 +232,7 @@ app.delete("/users/:id", async (req, res) => {
 
 
 
-app.get("/charities", async (req, res) => {
+app.get("/charities",upload.single('image'), async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM charities WHERE deleted_at IS NULL");
         res.status(200).json(result.rows);
@@ -260,7 +260,9 @@ app.get("/charities/:id", async (req, res) => {
 
 // POST route to create a new charity
 app.post("/charities", async (req, res) => {
-    const { name, description, image, goal, location, needed } = req.body;
+    const { name, description, goal, location, needed } = req.body;
+    const image = req.file.buffer;
+
 
     if (!name || !description || !goal || !location) {
         return res.status(400).json({ error: "All fields are required." });
