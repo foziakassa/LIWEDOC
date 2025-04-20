@@ -232,10 +232,30 @@ app.delete("/users/:id", async (req, res) => {
 
 
 
+// app.get("/charities", async (req, res) => {
+//     try {
+//         const result = await pool.query("SELECT * FROM charities WHERE deleted_at IS NULL");
+//         res.status(200).json(result.rows);
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: "Internal Server Error" });
+//     }
+// });
+
+
 app.get("/charities", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM charities WHERE deleted_at IS NULL");
-        res.status(200).json(result.rows);
+
+        // Convert image buffer to Base64 string
+        const charities = result.rows.map(charity => {
+            if (charity.image) { // Check if image exists
+                charity.image = `data:image/jpeg;base64,${charity.image.toString('base64')}`;
+            }
+            return charity;
+        });
+
+        res.status(200).json(charities);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
