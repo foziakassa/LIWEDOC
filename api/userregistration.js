@@ -356,7 +356,7 @@ app.delete("/charities/:id", async (req, res) => {
 // Create an advertisement
 app.post("/advertisements", upload.single('product_image'), async (req, res) => {
     const { company_name, email, phone_number, product_description } = req.body;
-    const product_image = req.file.buffer 
+    const product_image = req.body? req.file.buffer : null
 
     try {
 //////////////////////////////////////////
