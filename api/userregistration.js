@@ -353,6 +353,67 @@ app.delete("/charities/:id", async (req, res) => {
     }
 });
 
+// Create an advertisement
+app.post("/advertisements", upload.single('productImage'), async (req, res) => {
+    const { company_name, email, phone_number, product_description } = req.body;
+    const product_image = req.file ? req.file.buffer : null; // Get image buffer
+
+    try {
+        const result = await pool.query(
+            "INSERT INTO advertisements (company_name, email, phone_number, product_description, product_image) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+            [company_name, email, phone_number, product_description, product_image]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Approve an advertisement
+app.patch("/advertisements/:id/approve", async (req, res) => {
+    const adId = req.params.id;
+
+    try {
+        const result = await pool.query(
+            "UPDATE advertisements SET approved = TRUE WHERE id = $1 RETURNING *",
+            [adId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Advertisement not found." });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Retrieve all advertisements
+app.get("/advertisements", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM advertisements");
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Retrieve approved advertisements
+app.get("/advertisements/approved", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM advertisements WHERE approved = TRUE");
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);

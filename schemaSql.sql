@@ -158,3 +158,16 @@ CREATE TABLE favorites (
 
 -- Index for faster user favorites lookup
 CREATE INDEX idx_favorites_user ON favorites("user_id");
+
+
+-- advertisment table 
+CREATE TABLE advertisements (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    product_description TEXT NOT NULL,
+    product_image BYTEA,  -- For storing the image as binary
+    approved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
