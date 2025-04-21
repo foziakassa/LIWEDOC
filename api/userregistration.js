@@ -356,9 +356,10 @@ app.delete("/charities/:id", async (req, res) => {
 // Create an advertisement
 app.post("/advertisements", upload.single('productImage'), async (req, res) => {
     const { company_name, email, phone_number, product_description } = req.body;
-    const product_image = req.file ? req.file.buffer : null; // Get image buffer
+    const product_image = req.file.buffer 
 
     try {
+//////////////////////////////////////////
         const result = await pool.query(
             "INSERT INTO advertisements (company_name, email, phone_number, product_description, product_image) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [company_name, email, phone_number, product_description, product_image]
