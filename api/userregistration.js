@@ -338,12 +338,31 @@ app.put("/charities/:id", async (req, res) => {
 });
 
 // DELETE route to soft delete a charity
+// app.delete("/charities/:id", async (req, res) => {
+//     const charityId = req.params.id;
+
+//     try {
+//         const result = await pool.query(
+//             "UPDATE charities SET deleted_at = NOW() WHERE id = $1 RETURNING *",
+//             [charityId]
+//         );
+
+//         if (result.rowCount === 0) {
+//             return res.status(404).json({ error: "Charity not found." });
+//         }
+
+//         res.status(200).json({ message: "Charity deleted successfully." });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: "Internal Server Error" });
+//     }
+// });
 app.delete("/charities/:id", async (req, res) => {
     const charityId = req.params.id;
 
     try {
         const result = await pool.query(
-            "UPDATE charities SET deleted_at = NOW() WHERE id = $1 RETURNING *",
+            "DELETE FROM charities WHERE id = $1 RETURNING *",
             [charityId]
         );
 
@@ -357,7 +376,6 @@ app.delete("/charities/:id", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 // Create an advertisement
 app.post("/advertisements", upload.single('product_image'), async (req, res) => {
     const { company_name, email, phone_number, product_description } = req.body;
