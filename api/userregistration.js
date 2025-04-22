@@ -364,7 +364,7 @@ app.post("/advertisements", upload.single('product_image'), async (req, res) => 
     const product_image = req.body? req.file.buffer : null
 
     try {
-//////////////////////////////////////////
+//////////////////////////////////////////////jcnfjngj
         const result = await pool.query(
             "INSERT INTO advertisements (company_name, email, phone_number, product_description, product_image) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [company_name, email, phone_number, product_description, product_image]
