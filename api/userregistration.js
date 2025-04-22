@@ -134,6 +134,9 @@ app.post("/users", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+
+/// Image uplode api
 app.post("/users/image", upload.single('image'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: "No image provided." });
@@ -161,6 +164,8 @@ app.post("/users/image", upload.single('image'), async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+// activation api 
 
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
