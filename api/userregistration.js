@@ -35,11 +35,16 @@ const pool = new Pool({
 
 // Middleware
 // app.use(cors());
+
+  // Change this:
+
+
+// To this:
 app.use(cors({
-    origin: ['http://localhost:3000', 'hhttp://localhost:3001'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'https://liwedoc.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
-  }));
+}));
 app.use(bodyParser.json());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -179,11 +184,17 @@ app.post("/users/image", upload.single('image'), async (req, res) => {
 
 app.get("/activate/:token", async (req, res) => {
     const token = req.params.token;
-
+    
+    // Add debug logs
+    console.log("Request params:", req.params);
     console.log("Activation token received:", token);
-
+    
+    if (!token || token === 'undefined') {
+        console.error("Token is missing or undefined");
+        return res.status(400).json({ error: "Invalid activation link. Token is missing." });
+    }
+    
     try {
-        console.log("Activation token received:", token);
         // Check if the token is valid
         const result = await pool.query("SELECT * FROM \"ActivationToken\" WHERE \"Token\" = $1 AND \"Expiredat\" > NOW()", [token]);
 
@@ -192,7 +203,7 @@ app.get("/activate/:token", async (req, res) => {
             return res.status(400).json({ error: "Invalid or expired token." });
         }
 
-        const userId = result.rows[0].id; // Ensure this is the correct ID
+        const userId = result.rows[0].id;
         console.log("User ID retrieved for activation:", userId);
 
         // Attempt to update the user
@@ -201,13 +212,18 @@ app.get("/activate/:token", async (req, res) => {
 
         await pool.query("DELETE FROM \"ActivationToken\" WHERE \"Token\" = $1", [token]);
 
+        // If this is a direct API access, redirect to a success page
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return res.redirect('http://localhost:3000/login?activated=true');
+        }
+        
+        // Otherwise return JSON
         return res.status(200).json({ message: "Your account has been activated. You can now log in." });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 
 // DELETE route to delete a user
 app.delete("/users/:id", async (req, res) => {
