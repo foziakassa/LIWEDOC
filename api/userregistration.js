@@ -34,7 +34,12 @@ const pool = new Pool({
 });
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:3000', 'hhttp://localhost:3001'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+  }));
 app.use(bodyParser.json());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -119,6 +124,11 @@ app.post("/users", async (req, res) => {
         // Create the activation link using your production URL
         // const activationLink = `https://liwedoc.vercel.app/${token}`;
         const activationLink = `http://localhost:3000/activate/${token}`;
+        // const baseUrl = process.env.NODE_ENV === 'production' 
+        //     ? 'https://liwedoc.vercel.app'
+        //     : 'http://localhost:3000';
+            
+        // const activationLink = `${baseUrl}/activate/${token}`;
 
 
         // Send activation email
