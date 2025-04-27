@@ -128,7 +128,7 @@ app.post("/users", async (req, res) => {
 
         // Create the activation link using your production URL
         // const activationLink = `https://liwedoc.vercel.app/${token}`;
-        const activationLink = `http://localhost:3000/activate/${token}`;
+        const activationLink = `https://liwedoc.vercel.app/activate/${token}`;
         // const baseUrl = process.env.NODE_ENV === 'production' 
         //     ? 'https://liwedoc.vercel.app'
         //     : 'http://localhost:3000';
