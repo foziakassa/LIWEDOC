@@ -40,11 +40,13 @@ const pool = new Pool({
 
 
 // To this:
-app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'https://liwedoc.vercel.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-}));
+app.use(cors());
+
+// app.use(cors({
+//     origin: ['http://localhost:3000', 'http://localhost:3001', 'https://liwedoc.vercel.app'],
+//     methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//     credentials: true
+// }));
 app.use(bodyParser.json());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
