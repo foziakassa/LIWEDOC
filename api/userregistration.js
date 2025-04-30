@@ -430,12 +430,38 @@ app.delete("/charities/:id", async (req, res) => {
     }
 });
 // Create an advertisement
+// Retrieve a single advertisement by ID
+app.get("/advertisements/:id", async (req, res) => {
+    const adId = req.params.id;
+
+    try {
+        const result = await pool.query(
+            "SELECT * FROM advertisements WHERE id = $1",
+            [adId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Advertisement not found." });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 app.post("/advertisements", upload.single('product_image'), async (req, res) => {
     const { company_name, email, phone_number, product_description } = req.body;
 
     // Check if the file exists
     if (!req.file) {
         return res.status(400).json({ error: "No file uploaded." });
+    }
+
+    // Validate required fields
+    if (!company_name || !email || !phone_number || !product_description) {
+        return res.status(400).json({ error: "Missing required fields." });
     }
 
     const product_image = req.file.buffer; // Use req.file.buffer directly
@@ -494,9 +520,6 @@ app.get("/advertisements/approved", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
-
-
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
