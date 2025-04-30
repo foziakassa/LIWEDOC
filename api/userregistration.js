@@ -447,7 +447,7 @@ app.get("/advertisements/:id", async (req, res) => {
 
         // Convert image buffer to Base64 string if it exists
         if (advertisement.product_image) {
-            advertisement.image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
+            advertisement.product_image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
         }
         
 
