@@ -443,12 +443,7 @@ app.get("/advertisements/:id", async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: "Advertisement not found." });
         }
-        const advertisement = result.rows[0];
-
-        // Convert image buffer to Base64 string if it exists
-        if (advertisement.product_image) {
-            advertisement.image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
-        }
+        
 
         res.status(200).json(result.rows[0]);
     } catch (err) {
