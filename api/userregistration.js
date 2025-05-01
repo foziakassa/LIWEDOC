@@ -511,20 +511,20 @@ app.patch("/advertisements/:id/approve", async (req, res) => {
 // Retrieve all advertisements
 app.get("/advertisements", async (req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM advertisements");
-        res.status(200).json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-    const advertisement = result.rows[0];
-
+      const result = await pool.query("SELECT * FROM advertisements");
+      const advertisements = result.rows.map(advertisement => {
         // Convert image buffer to Base64 string if it exists
         if (advertisement.product_image) {
-            advertisement.product_image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
+          advertisement.product_image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
         }
-});
-
+        return advertisement;
+      });
+      res.status(200).json(advertisements);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
 // Retrieve approved advertisements
 app.get("/advertisements/approved", async (req, res) => {
     try {
