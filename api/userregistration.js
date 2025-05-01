@@ -529,6 +529,29 @@ app.get("/advertisements/approved", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+// Delete an advertisement
+app.delete("/advertisements/:id", async (req, res) => {
+    const adId = req.params.id;
+
+    try {
+        const result = await pool.query(
+            "DELETE FROM advertisements WHERE id = $1 RETURNING *",
+            [adId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Advertisement not found." });
+        }
+
+        res.status(200).json({ message: "Advertisement deleted successfully." });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
