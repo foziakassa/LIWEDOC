@@ -517,6 +517,12 @@ app.get("/advertisements", async (req, res) => {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
+    const advertisement = result.rows[0];
+
+        // Convert image buffer to Base64 string if it exists
+        if (advertisement.product_image) {
+            advertisement.product_image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
+        }
 });
 
 // Retrieve approved advertisements
