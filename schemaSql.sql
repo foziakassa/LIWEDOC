@@ -147,6 +147,7 @@ CREATE INDEX idx_reviews_reviewer ON reviews("reviewer_id");
 CREATE INDEX idx_reviews_reviewed_user ON reviews("reviewed_user_id");
 CREATE INDEX idx_reviews_entity ON reviews("reviewed_entity_type", "reviewed_entity_id");
 
+
 -- Favorites Table
 CREATE TABLE favorites (
     "user_id" INTEGER NOT NULL REFERENCES "user"("id"),

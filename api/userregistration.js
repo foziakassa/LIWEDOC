@@ -7,6 +7,7 @@ const multer = require("multer");
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const requestIp = require('request-ip');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -488,25 +489,64 @@ app.post("/advertisements", upload.single('product_image'), async (req, res) => 
 });
 
 // Approve an advertisement
+// Approve an advertisement with payment information
 app.patch("/advertisements/:id/approve", async (req, res) => {
     const adId = req.params.id;
-
-    try {
-        const result = await pool.query(
-            "UPDATE advertisements SET approved = TRUE WHERE id = $1 RETURNING *",
-            [adId]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Advertisement not found." });
-        }
-
-        res.status(200).json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
+    const { payment_amount, payment_duration } = req.body;
+  
+    // Validate payment information
+    if (!payment_amount || !payment_duration) {
+      return res.status(400).json({ error: "Payment amount and duration are required." });
     }
-});
+  
+    try {
+      // Calculate expiration date based on duration
+      const expirationDate = new Date();
+  
+      switch (payment_duration) {
+        case "1week":
+          expirationDate.setDate(expirationDate.getDate() + 7);
+          break;
+        case "2weeks":
+          expirationDate.setDate(expirationDate.getDate() + 14);
+          break;
+        case "1month":
+          expirationDate.setMonth(expirationDate.getMonth() + 1);
+          break;
+        case "3months":
+          expirationDate.setMonth(expirationDate.getMonth() + 3);
+          break;
+        case "6months":
+          expirationDate.setMonth(expirationDate.getMonth() + 6);
+          break;
+        case "1year":
+          expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+          break;
+        default:
+          expirationDate.setDate(expirationDate.getDate() + 7); // Default to 1 week
+      }
+  
+      const result = await pool.query(
+        `UPDATE advertisements 
+         SET approved = TRUE, 
+             payment_amount = $1, 
+             payment_duration = $2, 
+             expiration_date = $3 
+         WHERE id = $4 
+         RETURNING *`,
+        [payment_amount, payment_duration, expirationDate, adId]
+      );
+  
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Advertisement not found." });
+      }
+  
+      res.status(200).json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
 
 // Retrieve all advertisements
 app.get("/advertisements", async (req, res) => {
@@ -526,15 +566,30 @@ app.get("/advertisements", async (req, res) => {
     }
   });
 // Retrieve approved advertisements
+// Retrieve approved advertisements
 app.get("/advertisements/approved", async (req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM advertisements WHERE approved = TRUE");
-        res.status(200).json(result.rows);
+      // Only return advertisements that are approved and not expired
+      const result = await pool.query(`
+        SELECT * FROM advertisements 
+        WHERE approved = true 
+        AND (expiration_date IS NULL OR expiration_date > NOW())
+      `);
+  
+      const advertisements = result.rows.map(advertisement => {
+        // Convert image buffer to Base64 string if it exists
+        if (advertisement.product_image) {
+          advertisement.product_image = `data:image/jpeg;base64,${advertisement.product_image.toString('base64')}`;
+        }
+        return advertisement;
+      });
+  
+      res.status(200).json(advertisements);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
     }
-});
+  });
 
 // Delete an advertisement
 app.delete("/advertisements/:id", async (req, res) => {
@@ -557,7 +612,62 @@ app.delete("/advertisements/:id", async (req, res) => {
     }
 });
 
+const cron = require('node-cron');
 
+// Setup cron job to automatically delete expired advertisements
+// This runs every day at midnight
+cron.schedule('0 0 * * *', async () => {
+  try {
+    console.log("Running scheduled task to remove expired advertisements");
+    const result = await pool.query(
+      "DELETE FROM advertisements WHERE expiration_date < NOW() AND expiration_date IS NOT NULL RETURNING id"
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`Removed ${result.rows.length} expired advertisements`);
+    }
+  } catch (err) {
+    console.error("Error removing expired advertisements:", err);
+  }
+});
+
+
+
+// Middleware to track visitor IP addresses
+const trackVisitor = async (req, res, next) => {
+    // Use request-ip to get the client's IP address
+    const clientIp = requestIp.getClientIp(req);
+
+    if (!clientIp) {
+        console.warn("Could not determine client IP address.");
+        return next(); // Continue without tracking if IP can't be determined
+    }
+
+    try {
+        // Store the IP address in the database
+        await pool.query(
+            'INSERT INTO visitors (ip_address, visit_time) VALUES ($1, NOW())',
+            [clientIp]
+        );
+        next(); // Continue to the next middleware or route handler
+    } catch (err) {
+        console.error('Error tracking visitor:', err);
+        next(err); // Pass the error to the error handler
+    }
+};
+
+app.use(trackVisitor); // Apply the middleware to all routes
+
+// API Endpoint to get the list of visitors
+app.get('/visitors', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT ip_address, visit_time FROM visitors ORDER BY visit_time DESC');
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error('Error getting visitors:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });

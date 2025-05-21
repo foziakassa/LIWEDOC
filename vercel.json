@@ -1,8 +1,13 @@
 {
   "version": 2,
   "builds": [
+    
     {
       "src": "api/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "server.js",
       "use": "@vercel/node"
     }
   ],
@@ -28,24 +33,100 @@
       "dest": "api/adminlogin.js"
     },
     {
-      "src": "/api/items",
-      "dest": "api/items.js"
+      "src": "/api/items/(.*)",
+      "dest": "/api/items.js"
     },
     {
-      "src": "/api/services",
-      "dest": "api/services.js"
+      "src": "/api/services/(.*)",
+      "dest": "/api/services.js"
     },
     {
-      "src": "/api/editItem",
-      "dest": "api/editItem.js"
+      "src": "/api/swap-requests/(.*)",
+      "dest": "/api/swap-requests.js"
     },
     {
-      "src": "/api/editService",
-      "dest": "api/editService.js"
+      "src": "/api/notifications/(.*)",
+      "dest": "/api/notifications.js"
+    },
+    {
+      "src": "/api/messages/(.*)",
+      "dest": "/api/messages.js"
+    },
+    {
+      "src": "/api/search/(.*)",
+      "dest": "/api/search.js"
+    },
+    {
+      "src": "/api/analytics/(.*)",
+      "dest": "/api/analytics.js"
+    },
+    {
+      "src": "/api/auth/(.*)",
+      "dest": "/api/auth.js"
+    },
+    {
+      "src": "/api/homepage",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/api/users/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/api/dashboard",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/api/plans",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/payment/initialize",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/payment/verify/(.*)",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/payment/callback",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/user/posts-status",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/user/create-post",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/payment/receipt/(.*)",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/health",
+      "dest": "api/payment.js"
+    },
+    {
+      "src": "/api/transactions",
+      "dest": "api/payment.js"
     },
     {
       "src": "/(.*)",
       "dest": "api/userregistration.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/server.js"
     }
-  ]
+  ],
+  "env": {
+    "NEXT_PUBLIC_APP_API": "https://liwedoc.vercel.app/", 
+     "FRONTEND_URL": "https://liwedoc.vercel.app"
+  }
 }
