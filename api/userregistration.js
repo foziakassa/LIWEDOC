@@ -784,7 +784,7 @@ app.get("/api/items/:id", async (req, res) => {
 // Fetch all items endpoint
 app.get("/api/items", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM items");
+    const result = await pool.query("SELECT * FROM item");
     return res.status(200).json({
       success: true,
       items: result.rows,
