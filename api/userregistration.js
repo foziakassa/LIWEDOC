@@ -691,8 +691,6 @@ const itemSchema = z.object({
   }),
   image_urls: z.array(z.string()).optional(), // Add this to accept image URLs
 });
-
-// Updated endpoint to store image URLs directly in the item table
 app.post("/api/items", async (req, res) => {
   try {
     const validatedData = itemSchema.parse(req.body); // Validate incoming data
