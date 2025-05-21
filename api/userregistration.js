@@ -816,31 +816,23 @@ const imageUpload = multer({ storage: memoryStorage }); // Renamed from 'upload'
 // Upload image endpoint
 app.post('/api/upload', imageUpload.single('image_urls'), async (req, res) => {
   try {
-    const stream = cloudinary.uploader.upload_stream();
-    
-    // Convert buffer to stream and upload to Cloudinary
-    streamifier.createReadStream(req.file.buffer).pipe(stream)
-      .on('finish', () => {
-        res.status(200).json({
-          success: true,
-          url: stream.secure_url,
-        });
-      })
-      .on('error', (error) => {
-        console.error("Error uploading to Cloudinary:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to upload image",
-        });
-      });
-  } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to upload image",
+    const stream = cloudinary.uploader.upload_stream((error, result) => {
+      if (error) {
+        console.error("Cloudinary upload error:", error);
+        return res.status(500).json({ success: false, message: "Failed to upload image" });
+      }
+      // result contains the uploaded image info, including secure_url
+      return res.status(200).json({ success: true, url: result.secure_url });
     });
+
+    // Pipe the file buffer to Cloudinary upload stream
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
+  } catch (error) {
+    console.error("Unexpected error uploading to Cloudinary:", error);
+    return res.status(500).json({ success: false, message: "Failed to upload image" });
   }
 });
+
 
 
 // Start server
