@@ -814,7 +814,7 @@ const memoryStorage = multer.memoryStorage(); // Renamed from 'storage' to 'memo
 const imageUpload = multer({ storage: memoryStorage }); // Renamed from 'upload' to 'imageUpload'
 
 // Upload image endpoint
-app.post('/api/upload', imageUpload.single('image'), async (req, res) => {
+app.post('/api/upload', imageUpload.single('image_urls'), async (req, res) => {
   try {
     const stream = cloudinary.uploader.upload_stream();
     
