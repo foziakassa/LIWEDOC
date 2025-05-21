@@ -748,55 +748,7 @@ app.post("/api/items", async (req, res) => {
 });
 
 
-// Get item by ID endpoint
-app.get("/api/items/:id", async (req, res) => {
-  const itemId = req.params.id;
 
-  try {
-    const result = await pool.query(
-      `
-      SELECT * FROM item WHERE id = $1
-      `,
-      [itemId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Item not found",
-      });
-    }
-
-    const item = result.rows[0];
-    return res.status(200).json({
-      success: true,
-      item,
-    });
-  } catch (error) {
-    console.error("Error fetching item:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch item",
-    });
-  }
-});
-
-// Fetch all items endpoint
-app.get("/api/items", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM items");
-    return res.status(200).json({
-      success: true,
-      items: result.rows,
-    });
-  } catch (error) {
-    console.error("Error fetching items:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch items",
-    });
-  }
-});
 
 // Start server
 
