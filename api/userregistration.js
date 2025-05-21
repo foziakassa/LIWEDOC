@@ -9,6 +9,8 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const requestIp = require('request-ip');
 import { z } from "zod";
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
 
 
 const app = express();
@@ -797,6 +799,37 @@ app.get("/items", async (req, res) => {
     });
   }
 });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
+  api_key: process.env.CLOUDERY_API_KEY,       // Replace with your Cloudinary API key
+  api_secret: process.env.CLOUDERY_API_SECRET,  // Replace with your Cloudinary API secret
+});
+
+// Set up multer for file uploads
+const uploadd = multer({ dest: 'uploads/' });
+
+// Upload image endpoint
+app.post('/api/upload', uploadd.single('image'), async (req, res) => {
+  try {
+    const result = await cloudinary.uploader.upload(req.file.path);
+    
+    // Remove the file from local storage after uploading
+    fs.unlinkSync(req.file.path);
+
+    return res.status(200).json({
+      success: true,
+      url: result.secure_url,
+    });
+  } catch (error) {
+    console.error("Error uploading to Cloudinary:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload image",
+    });
+  }
+});
+
 
 // Start server
 
