@@ -749,7 +749,7 @@ app.post("/api/items", async (req, res) => {
 
 
 // Get item by ID endpoint
-app.get("/api/items/:id", async (req, res) => {
+app.get("/items/:id", async (req, res) => {
   const itemId = req.params.id;
 
   try {
@@ -782,7 +782,7 @@ app.get("/api/items/:id", async (req, res) => {
 });
 
 // Fetch all items endpoint
-app.get("/api/items", async (req, res) => {
+app.get("/items", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM item");
     return res.status(200).json({
