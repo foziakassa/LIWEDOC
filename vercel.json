@@ -5,10 +5,6 @@
     {
       "src": "api/*.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -119,14 +115,7 @@
     {
       "src": "/(.*)",
       "dest": "api/userregistration.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_APP_API": "https://liwedoc.vercel.app/", 
-     "FRONTEND_URL": "https://liwedoc.vercel.app"
-  }
+  ]
+ 
 }
