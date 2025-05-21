@@ -675,7 +675,6 @@ app.get('/visitors', async (req, res) => {
 
 
 
-// Item schema validation
 const itemSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
   description: z.string().optional(),
@@ -690,9 +689,10 @@ const itemSchema = z.object({
   preferredContactMethod: z.enum(["phone", "email"], {
     required_error: "Please select a preferred contact method.",
   }),
+  image_urls: z.array(z.string()).optional(), // Add this to accept image URLs
 });
 
-// Create item endpoint
+// Updated endpoint to store image URLs directly in the item table
 app.post("/api/items", async (req, res) => {
   try {
     const validatedData = itemSchema.parse(req.body); // Validate incoming data
@@ -709,13 +709,18 @@ app.post("/api/items", async (req, res) => {
       phone,
       email,
       preferredContactMethod,
+      image_urls = [], // Default to empty array if not provided
     } = validatedData;
 
-    // Insert item into the database
+    // Insert item into the database with image_urls
     const result = await pool.query(
       `
-      INSERT INTO item (title, description, category, subcategory, condition, price, city, subcity, phone, email, preferred_contact_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO item (
+        title, description, category, subcategory, condition, 
+        price, city, subcity, phone, email, 
+        preferred_contact_method, image_urls
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
       `,
       [
@@ -730,6 +735,7 @@ app.post("/api/items", async (req, res) => {
         phone,
         email,
         preferredContactMethod,
+        image_urls, // PostgreSQL will automatically handle the array
       ]
     );
 
@@ -748,7 +754,6 @@ app.post("/api/items", async (req, res) => {
     });
   }
 });
-
 
 // Get item by ID endpoint
 app.get("/items/:id", async (req, res) => {
