@@ -8,6 +8,8 @@ require("dotenv").config();
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const requestIp = require('request-ip');
+import { z } from "zod";
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -668,6 +670,88 @@ app.get('/visitors', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+// Item schema validation
+const itemSchema = z.object({
+  title: z.string().min(5, "Title must be at least 5 characters."),
+  description: z.string().optional(),
+  category: z.string().min(1, "Please select a category."),
+  subcategory: z.string().min(1, "Please select a subcategory."),
+  condition: z.string().min(1, "Please select a condition."),
+  price: z.number().min(0, "Price must be a positive number."),
+  city: z.string().min(1, "Please enter your city."),
+  subcity: z.string().optional(),
+  phone: z.string().min(10, "Please enter a valid phone number."),
+  email: z.string().email("Please enter a valid email address."),
+  preferredContactMethod: z.enum(["phone", "email"], {
+    required_error: "Please select a preferred contact method.",
+  }),
+});
+
+// Create item endpoint
+app.post("/api/items", async (req, res) => {
+  try {
+    const validatedData = itemSchema.parse(req.body); // Validate incoming data
+
+    const {
+      title,
+      description,
+      category,
+      subcategory,
+      condition,
+      price,
+      city,
+      subcity,
+      phone,
+      email,
+      preferredContactMethod,
+    } = validatedData;
+
+    // Insert item into the database
+    const result = await pool.query(
+      `
+      INSERT INTO items (title, description, category, subcategory, condition, price, city, subcity, phone, email, preferred_contact_method)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+      `,
+      [
+        title,
+        description,
+        category,
+        subcategory,
+        condition,
+        price,
+        city,
+        subcity,
+        phone,
+        email,
+        preferredContactMethod,
+      ]
+    );
+
+    const newItemId = result.rows[0].id;
+
+    return res.status(201).json({
+      success: true,
+      message: "Item created successfully",
+      itemId: newItemId,
+    });
+  } catch (error) {
+    console.error("Error creating item:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create item",
+    });
+  }
+});
+
+// Health check endpoint
+
+
+// Start server
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}.`);
 });
