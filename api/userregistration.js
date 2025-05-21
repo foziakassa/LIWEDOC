@@ -712,7 +712,7 @@ app.post("/api/items", async (req, res) => {
     // Insert item into the database
     const result = await pool.query(
       `
-      INSERT INTO items (title, description, category, subcategory, condition, price, city, subcity, phone, email, preferred_contact_method)
+      INSERT INTO item (title, description, category, subcategory, condition, price, city, subcity, phone, email, preferred_contact_method)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id
       `,
