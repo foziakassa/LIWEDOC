@@ -846,7 +846,7 @@ app.get("/postitem/:userId", async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT * FROM item WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM item WHERE user_id = $1 ORDER BY createdat DESC',
       [user_id]
     );
     if (result.rows.length === 0) {
