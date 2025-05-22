@@ -28,10 +28,7 @@
       "src": "/api/adminlogin",
       "dest": "api/adminlogin.js"
     },
-    {
-      "src": "/api/items/(.*)",
-      "dest": "/api/items.js"
-    },
+   
     {
       "src": "/api/services/(.*)",
       "dest": "/api/services.js"
