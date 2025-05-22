@@ -865,10 +865,35 @@ app.get("/postitem/:userId", async (req, res) => {
   }
 });
 
-//mm
+// Define the service schema
+const serviceSchema = z.object({
+  title: z.string().min(5, "Title must be at least 5 characters."),
+  description: z.string().min(20, "Description must be at least 20 characters."),
+  category: z.string().min(1, "Please select a category."),
+  subcategory: z.string().min(1, "Please select a subcategory."),
+  price: z.string().refine((val) => !isNaN(Number(val)), {
+    message: "Price must be a number.",
+  }),
+  city: z.string().min(1, "Please enter your city."),
+  subcity: z.string().optional(),
+  contact_info: z.object({
+    phone: z.string().min(10, "Please enter a valid phone number."),
+    email: z.string().email("Please enter a valid email address."),
+    preferred_contact_method: z.enum(["phone", "email"], {
+      required_error: "Please select a preferred contact method.",
+    }),
+  }),
+  service_details: z.object({
+    service_type: z.string(),
+    experience_level: z.string(),
+  }),
+  user_id: z.number(),
+});
+
+// Create service endpoint
 app.post("/api/services", async (req, res) => {
   try {
-    const validatedData = serviceSchema.parse(req.body); // Validate incoming data
+    const validatedData = serviceSchema.parse(req.body);
 
     const {
       title,
@@ -880,18 +905,17 @@ app.post("/api/services", async (req, res) => {
       subcity,
       contact_info,
       service_details,
-      user_id, // Expecting user_id to be passed in the request body
-      image_urls = [],
+      user_id,
     } = validatedData;
 
     // Insert service into the database
     const result = await pool.query(
       `
-      INSERT INTO service (
+      INSERT INTO services (
         title, description, category, subcategory, price, 
-        city, subcity, contact_info, service_details, user_id, images
+        city, subcity, contact_info, service_details, user_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
       `,
       [
@@ -905,12 +929,10 @@ app.post("/api/services", async (req, res) => {
         JSON.stringify(contact_info),
         JSON.stringify(service_details),
         user_id,
-        image_urls,
       ]
     );
 
     const newServiceId = result.rows[0].id;
-
     return res.status(201).json({
       success: true,
       message: "Service created successfully",
@@ -924,7 +946,6 @@ app.post("/api/services", async (req, res) => {
     });
   }
 });
-
 // Get service by ID endpoint
 app.get("/api/services/:id", async (req, res) => {
   const serviceId = req.params.id;
