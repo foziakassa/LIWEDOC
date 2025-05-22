@@ -887,7 +887,7 @@ app.post("/api/services", async (req, res) => {
     // Insert service into the database
     const result = await pool.query(
       `
-      INSERT INTO services (
+      INSERT INTO service (
         title, description, category, subcategory, price, 
         city, subcity, contact_info, service_details, user_id, images
       )
