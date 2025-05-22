@@ -793,7 +793,7 @@ app.get("/api/items/:id", async (req, res) => {
 // Fetch all items endpoint
 app.get("/items", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM item");
+    const result = await pool.query("SELECT * FROM item ORDER BY createdat DESC");
     return res.status(200).json({
       success: true,
       items: result.rows,
