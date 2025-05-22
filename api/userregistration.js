@@ -866,7 +866,160 @@ app.get("/postitem/:userId", async (req, res) => {
 });
 
 
+app.post("/api/services", async (req, res) => {
+  try {
+    const validatedData = serviceSchema.parse(req.body); // Validate incoming data
 
+    const {
+      title,
+      description,
+      category,
+      subcategory,
+      price,
+      city,
+      subcity,
+      contact_info,
+      service_details,
+      user_id, // Expecting user_id to be passed in the request body
+      image_urls = [],
+    } = validatedData;
+
+    // Insert service into the database
+    const result = await pool.query(
+      `
+      INSERT INTO services (
+        title, description, category, subcategory, price, 
+        city, subcity, contact_info, service_details, user_id, images
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+      `,
+      [
+        title,
+        description,
+        category,
+        subcategory,
+        price,
+        city,
+        subcity,
+        JSON.stringify(contact_info),
+        JSON.stringify(service_details),
+        user_id,
+        image_urls,
+      ]
+    );
+
+    const newServiceId = result.rows[0].id;
+
+    return res.status(201).json({
+      success: true,
+      message: "Service created successfully",
+      serviceId: newServiceId,
+    });
+  } catch (error) {
+    console.error("Error creating service:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create service",
+    });
+  }
+});
+
+// Get service by ID endpoint
+app.get("/api/services/:id", async (req, res) => {
+  const serviceId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT * FROM services WHERE id = $1
+      `,
+      [serviceId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    const service = result.rows[0];
+    return res.status(200).json({
+      success: true,
+      service,
+    });
+  } catch (error) {
+    console.error("Error fetching service:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch service",
+    });
+  }
+});
+
+// Fetch all services endpoint
+app.get("/api/services", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM services ORDER BY createdat DESC");
+    return res.status(200).json({
+      success: true,
+      services: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch services",
+    });
+  }
+});
+
+// Upload images endpoint
+app.post('/api/uploads', imageUpload.array('image_urls'), async (req, res) => {
+  try {
+    const uploadPromises = req.files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.v2.uploader.upload_stream((error, result) => {
+          if (error) {
+            console.error("Cloudinary upload error:", error);
+            return reject("Failed to upload image");
+          }
+          resolve(result.secure_url); // Return the secure URL
+        });
+
+        // Pipe the file buffer to Cloudinary upload stream
+        streamifier.createReadStream(file.buffer).pipe(stream);
+      });
+    });
+
+    // Wait for all uploads to complete
+    const imageUrls = await Promise.all(uploadPromises);
+    return res.status(200).json({ success: true, urls: imageUrls });
+  } catch (error) {
+    console.error("Unexpected error uploading to Cloudinary:", error);
+    return res.status(500).json({ success: false, message: "Failed to upload images" });
+  }
+});
+
+// Get services by user ID
+app.get("/api/services/user/:userId", async (req, res) => {
+  const user_id = req.params.userId;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM services WHERE user_id = $1 ORDER BY createdat DESC',
+      [user_id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No services found for this user." });
+    }
+    return res.status(200).json({ success: true, services: result.rows });
+  } catch (error) {
+    console.error('Error fetching user services:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch services' });
+  }
+});
 
 // Start server
 
