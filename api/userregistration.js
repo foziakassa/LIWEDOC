@@ -690,6 +690,7 @@ const itemSchema = z.object({
     required_error: "Please select a preferred contact method.",
   }),
   image_urls: z.array(z.string()).optional(), // Add this to accept image URLs
+  user_id: z.number().int().positive(), // Add user_id validation
 });
 app.post("/api/items", async (req, res) => {
   try {
@@ -707,18 +708,19 @@ app.post("/api/items", async (req, res) => {
       phone,
       email,
       preferredContactMethod,
-      image_urls = [], // Default to empty array if not provided
+      image_urls = [],
+      user_id, // <-- Add user_id here
     } = validatedData;
 
-    // Insert item into the database with image_urls
+    // Insert item into the database with user_id
     const result = await pool.query(
       `
       INSERT INTO item (
         title, description, category, subcategory, condition, 
         price, city, subcity, phone, email, 
-        preferred_contact_method, image_urls
+        preferred_contact_method, image_urls, user_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
       `,
       [
@@ -733,7 +735,8 @@ app.post("/api/items", async (req, res) => {
         phone,
         email,
         preferredContactMethod,
-        image_urls, // PostgreSQL will automatically handle the array
+        image_urls,
+        user_id, // <-- Include user_id in values array
       ]
     );
 
@@ -752,6 +755,7 @@ app.post("/api/items", async (req, res) => {
     });
   }
 });
+
 
 // Get item by ID endpoint
 app.get("/items/:id", async (req, res) => {
