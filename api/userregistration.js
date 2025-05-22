@@ -837,14 +837,21 @@ app.post('/api/upload', imageUpload.single('image_urls'), async (req, res) => {
   }
 });
 
+
+
 // get user listing from item table by using user id 
-app.get('/api/items/user/:userId', async (req, res) => {
-  const userId = req.params.userId;
+app.get("/postitem/:userId", async (req, res) => {
+  const user_id = req.params.userId;
+    // const charityId = req.params.id;
+
   try {
     const result = await pool.query(
       'SELECT * FROM item WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
+      [user_id]
     );
+    if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Charity not found." });
+        }
     return res.status(200).json({ success: true, items: result.rows });
   } catch (error) {
     console.error('Error fetching user items:', error);
