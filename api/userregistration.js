@@ -837,6 +837,22 @@ app.post('/api/upload', imageUpload.single('image_urls'), async (req, res) => {
   }
 });
 
+// get user listing from item table by using user id 
+app.get('/api/items/user/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const result = await pool.query(
+      'SELECT * FROM item WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    return res.status(200).json({ success: true, items: result.rows });
+  } catch (error) {
+    console.error('Error fetching user items:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch items' });
+  }
+});
+
+
 
 
 // Start server
