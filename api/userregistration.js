@@ -757,7 +757,7 @@ app.post("/api/items", async (req, res) => {
 });
 
 
-// Get item by ID endpoint
+// Get item by ID endpointu
 app.get("/api/items/:id", async (req, res) => {
   const itemId = req.params.id;
 
