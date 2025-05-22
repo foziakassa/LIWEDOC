@@ -814,29 +814,35 @@ cloudinary.config({
 });
 
 // Set up multer for file uploads using memory storage
-const memoryStorage = multer.memoryStorage(); // Renamed from 'storage' to 'memoryStorage'
-const imageUpload = multer({ storage: memoryStorage }); // Renamed from 'upload' to 'imageUpload'
+const memoryStorage = multer.memoryStorage();
+const imageUpload = multer({ storage: memoryStorage });
 
-// Upload image endpoint
-app.post('/api/upload', imageUpload.single('image_urls'), async (req, res) => {
+// Upload images endpoint
+app.post('/api/upload', imageUpload.array('image_urls'), async (req, res) => {
   try {
-    const stream = cloudinary.uploader.upload_stream((error, result) => {
-      if (error) {
-        console.error("Cloudinary upload error:", error);
-        return res.status(500).json({ success: false, message: "Failed to upload image" });
-      }
-      // result contains the uploaded image info, including secure_url
-      return res.status(200).json({ success: true, url: result.secure_url });
+    const uploadPromises = req.files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream((error, result) => {
+          if (error) {
+            console.error("Cloudinary upload error:", error);
+            return reject("Failed to upload image");
+          }
+          resolve(result.secure_url); // Return the secure URL
+        });
+
+        // Pipe the file buffer to Cloudinary upload stream
+        streamifier.createReadStream(file.buffer).pipe(stream);
+      });
     });
 
-    // Pipe the file buffer to Cloudinary upload stream
-    streamifier.createReadStream(req.file.buffer).pipe(stream);
+    // Wait for all uploads to complete
+    const imageUrls = await Promise.all(uploadPromises);
+    return res.status(200).json({ success: true, urls: imageUrls });
   } catch (error) {
     console.error("Unexpected error uploading to Cloudinary:", error);
-    return res.status(500).json({ success: false, message: "Failed to upload image" });
+    return res.status(500).json({ success: false, message: "Failed to upload images" });
   }
 });
-
 
 
 // get user listing from item table by using user id 
