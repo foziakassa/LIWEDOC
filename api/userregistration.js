@@ -884,6 +884,8 @@ const serviceSchema = z.object({
   image_urls: z.array(z.string()).optional(), // Add this to accept image URLs
   user_id: z.number().int().positive(), // Add user_id validation
 });
+
+// post api for seervice 
 app.post("/api/services", async (req, res) => {
   try {
     const validatedData = serviceSchema.parse(req.body); // Validate incoming data
@@ -907,7 +909,7 @@ app.post("/api/services", async (req, res) => {
     // Insert item into the database with user_id
     const result = await pool.query(
       `
-      INSERT INTO item (
+      INSERT INTO service (
         title, description, category, subcategory, condition, 
         price, city, subcity, phone, email, 
         preferred_contact_method, image_urls, user_id
