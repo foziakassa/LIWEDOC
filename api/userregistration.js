@@ -865,57 +865,54 @@ app.get("/postitem/:userId", async (req, res) => {
   }
 });
 
-// Define the service schema
+/// service api 
+
 const serviceSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
-  description: z.string().min(20, "Description must be at least 20 characters."),
+  description: z.string().optional(),
   category: z.string().min(1, "Please select a category."),
   subcategory: z.string().min(1, "Please select a subcategory."),
-  price: z.string().refine((val) => !isNaN(Number(val)), {
-    message: "Price must be a number.",
-  }),
+  // condition: z.string().min(1, "Please select a condition."),
+  price: z.number().min(0, "Price must be a positive number."),
   city: z.string().min(1, "Please enter your city."),
   subcity: z.string().optional(),
-  contact_info: z.object({
-    phone: z.string().min(10, "Please enter a valid phone number."),
-    email: z.string().email("Please enter a valid email address."),
-    preferred_contact_method: z.enum(["phone", "email"], {
-      required_error: "Please select a preferred contact method.",
-    }),
+  phone: z.string().min(10, "Please enter a valid phone number."),
+  email: z.string().email("Please enter a valid email address."),
+  preferredContactMethod: z.enum(["phone", "email"], {
+    required_error: "Please select a preferred contact method.",
   }),
-  service_details: z.object({
-    service_type: z.string(),
-    experience_level: z.string(),
-  }),
-  user_id: z.number(),
+  image_urls: z.array(z.string()).optional(), // Add this to accept image URLs
+  user_id: z.number().int().positive(), // Add user_id validation
 });
-
-// Create service endpoint
 app.post("/api/services", async (req, res) => {
   try {
-    const validatedData = serviceSchema.parse(req.body);
+    const validatedData = serviceSchema.parse(req.body); // Validate incoming data
 
     const {
       title,
       description,
       category,
       subcategory,
+      // condition,
       price,
       city,
       subcity,
-      contact_info,
-      service_details,
-      user_id,
+      phone,
+      email,
+      preferredContactMethod,
+      image_urls = [],
+      user_id, // <-- Add user_id here
     } = validatedData;
 
-    // Insert service into the database
+    // Insert item into the database with user_id
     const result = await pool.query(
       `
-      INSERT INTO service (
-        title, description, category, subcategory, price, 
-        city, subcity, contact_info, service_details, user_id
+      INSERT INTO item (
+        title, description, category, subcategory, condition, 
+        price, city, subcity, phone, email, 
+        preferred_contact_method, image_urls, user_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
       `,
       [
@@ -923,45 +920,51 @@ app.post("/api/services", async (req, res) => {
         description,
         category,
         subcategory,
+        // condition,
         price,
         city,
         subcity,
-        JSON.stringify(contact_info),
-        JSON.stringify(service_details),
-        user_id,
+        phone,
+        email,
+        preferredContactMethod,
+        image_urls,
+        user_id, // <-- Include user_id in values array
       ]
     );
 
     const newServiceId = result.rows[0].id;
+
     return res.status(201).json({
       success: true,
-      message: "Service created successfully",
-      serviceId: newServiceId,
+      message: "Item created successfully",
+      itemId: newServiceId,
     });
   } catch (error) {
-    console.error("Error creating service:", error);
+    console.error("Error creating item:", error);
     return res.status(400).json({
       success: false,
-      message: error.message || "Failed to create service",
+      message: error.message || "Failed to create item",
     });
   }
 });
-// Get service by ID endpoint
+
+
+// Get item by ID endpointu
 app.get("/api/services/:id", async (req, res) => {
-  const serviceId = req.params.id;
+  const ServiceId = req.params.id;
 
   try {
     const result = await pool.query(
       `
-      SELECT * FROM services WHERE id = $1
+      SELECT * FROM item WHERE id = $1
       `,
-      [serviceId]
+      [ServiceId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Service not found",
+        message: "Item not found",
       });
     }
 
@@ -971,37 +974,47 @@ app.get("/api/services/:id", async (req, res) => {
       service,
     });
   } catch (error) {
-    console.error("Error fetching service:", error);
+    console.error("Error fetching item:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch service",
+      message: "Failed to fetch item",
     });
   }
 });
 
-// Fetch all services endpoint
-app.get("/api/services", async (req, res) => {
+// Fetch all items endpoint
+app.get("/services", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM services ORDER BY createdat DESC");
+    const result = await pool.query("SELECT * FROM item ORDER BY createdat DESC");
     return res.status(200).json({
       success: true,
-      services: result.rows,
+      service: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching services:", error);
+    console.error("Error fetching items:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch services",
+      message: "Failed to fetch items",
     });
   }
 });
+
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
+//   api_key: process.env.CLOUDERY_API_KEY,       // Replace with your Cloudinary API key
+//   api_secret: process.env.CLOUDERY_API_SECRET,  // Replace with your Cloudinary API secret
+// });
+
+// // Set up multer for file uploads using memory storage
+// const memoryStorage = multer.memoryStorage();
+// const imageUpload = multer({ storage: memoryStorage });
 
 // Upload images endpoint
 app.post('/api/uploads', imageUpload.array('image_urls'), async (req, res) => {
   try {
     const uploadPromises = req.files.map((file) => {
       return new Promise((resolve, reject) => {
-        const stream = cloudinary.v2.uploader.upload_stream((error, result) => {
+        const stream = cloudinary.uploader.upload_stream((error, result) => {
           if (error) {
             console.error("Cloudinary upload error:", error);
             return reject("Failed to upload image");
@@ -1023,22 +1036,24 @@ app.post('/api/uploads', imageUpload.array('image_urls'), async (req, res) => {
   }
 });
 
-// Get services by user ID
-app.get("/api/services/user/:userId", async (req, res) => {
+
+// get user listing from item table by using user id 
+app.get("/postservice/:userId", async (req, res) => {
   const user_id = req.params.userId;
+    // const charityId = req.params.id;
 
   try {
     const result = await pool.query(
-      'SELECT * FROM services WHERE user_id = $1 ORDER BY createdat DESC',
+      'SELECT * FROM item WHERE user_id = $1 ORDER BY createdat DESC',
       [user_id]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No services found for this user." });
-    }
-    return res.status(200).json({ success: true, services: result.rows });
+            return res.status(404).json({ error: "Charity not found." });
+        }
+    return res.status(200).json({ success: true, items: result.rows });
   } catch (error) {
-    console.error('Error fetching user services:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch services' });
+    console.error('Error fetching user items:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch items' });
   }
 });
 
