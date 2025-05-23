@@ -958,7 +958,7 @@ app.get("/api/services/:id", async (req, res) => {
   try {
     const result = await pool.query(
       `
-      SELECT * FROM item WHERE id = $1
+      SELECT * FROM service WHERE id = $1
       `,
       [ServiceId]
     );
@@ -987,7 +987,7 @@ app.get("/api/services/:id", async (req, res) => {
 // Fetch all items endpoint
 app.get("/services", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM item ORDER BY createdat DESC");
+    const result = await pool.query("SELECT * FROM service ORDER BY createdat DESC");
     return res.status(200).json({
       success: true,
       service: result.rows,

@@ -29,10 +29,7 @@
       "dest": "api/adminlogin.js"
     },
    
-    {
-      "src": "/api/services/(.*)",
-      "dest": "/api/services.js"
-    },
+    
     {
       "src": "/api/swap-requests/(.*)",
       "dest": "/api/swap-requests.js"
