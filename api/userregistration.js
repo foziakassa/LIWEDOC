@@ -968,7 +968,7 @@ app.get("/api/services/:id", async (req, res) => {
         message: "Item not found",
       });
     }
-
+//
     const service = result.rows[0];
     return res.status(200).json({
       success: true,
