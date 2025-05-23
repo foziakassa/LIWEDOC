@@ -1051,7 +1051,7 @@ app.get("/postservice/:userId", async (req, res) => {
     if (result.rows.length === 0) {
             return res.status(404).json({ error: "Charity not found." });
         }
-    return res.status(200).json({ success: true, items: result.rows });
+    return res.status(200).json({ success: true, services: result.rows });
   } catch (error) {
     console.error('Error fetching user items:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch items' });
