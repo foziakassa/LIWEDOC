@@ -908,31 +908,30 @@ app.post("/api/services", async (req, res) => {
 
     // Insert item into the database with user_id
     const result = await pool.query(
-      `
-      INSERT INTO service (
-        title, description, category, subcategory, 
-        price, city, subcity, phone, email, 
-        preferred_contact_method, image_urls, user_id
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id
-      `,
-      [
-        title,
-        description,
-        category,
-        subcategory,
-        // condition,
-        price,
-        city,
-        subcity,
-        phone,
-        email,
-        preferredContactMethod,
-        image_urls,
-        user_id, // <-- Include user_id in values array
-      ]
-    );
+  `
+  INSERT INTO service (
+    title, description, category, subcategory, 
+    price, city, subcity, phone, email, 
+    preferred_contact_method, image_urls, user_id
+  )
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+  RETURNING id
+  `,
+  [
+    title,
+    description,
+    category,
+    subcategory,
+    price,
+    city,
+    subcity,
+    phone, // Ensure this matches the database column
+    email,
+    preferredContactMethod,
+    image_urls,
+    user_id,
+  ]
+);
 
     const newServiceId = result.rows[0].id;
 
