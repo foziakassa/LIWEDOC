@@ -939,7 +939,7 @@ app.post("/api/services", async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Item created successfully",
-      itemId: newServiceId,
+      serviceId: newServiceId,
     });
   } catch (error) {
     console.error("Error creating item:", error);
