@@ -1091,7 +1091,26 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+// GET route to fetch notifications for a specific user
+app.get('/api/notifications/:userId', async (req, res) => {
+    const userId = req.params.userId;
 
+    try {
+        const result = await pool.query(
+            `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'No notifications found for this user.' });
+        }
+
+        return res.status(200).json({ success: true, notifications: result.rows });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
 // Start server
 
 app.listen(PORT, () => {
