@@ -1059,6 +1059,7 @@ app.get("/postservice/:userId", async (req, res) => {
 });
 
 // POST route to send a swap request
+// POST route to send a swap request
 app.post('/api/swap-request', async (req, res) => {
     const { userId, itemId, offeredItemId } = req.body;
 
@@ -1076,20 +1077,26 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
-        // Fetch the item's owner user ID
-        const itemOwner = await pool.query(
-            `SELECT user_id FROM item WHERE id = $1`,
+        // Fetch the item's title and the user's name
+        const itemResult = await pool.query(
+            `SELECT title FROM item WHERE id = $1`,
             [itemId]
         );
 
-        if (itemOwner.rows.length > 0) {
-            const ownerId = itemOwner.rows[0].user_id;
+        const userResult = await pool.query(
+            `SELECT Firstname, Lastname FROM "user" WHERE id = $1`,
+            [userId]
+        );
+
+        if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
+            const itemTitle = itemResult.rows[0].title;
+            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
             // Create a notification for the owner
             await pool.query(
                 `INSERT INTO notifications (user_id, message, created_at) 
                  VALUES ($1, $2, NOW())`,
-                [ownerId, `User ${userId} is interested in swapping item ${itemId}`]
+                [itemOwnerId, `${userName} is interested in swapping "${itemTitle}"`]
             );
         }
 
