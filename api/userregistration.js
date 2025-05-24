@@ -99,61 +99,62 @@ app.get("/users/:id", async (req, res) => {
 });
 
 // POST route to create a new user
-app.post("/users", async (req, res) => {
-    const { Firstname, Lastname, Email, Password , Role } = req.body;
-    const userRole = Role || "User";
-    if (!Firstname || !Lastname || !Email || !Password) {
-        return res.status(400).json({ error: "All fields are required." });
+// POST route to send a swap request
+app.post('/api/swap-request', async (req, res) => {
+    const { userId, itemId, offeredItemId } = req.body;
+
+    // Validate request data
+    if (!userId || !itemId || !offeredItemId) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     try {
-        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "User  already exists." });
-        }
-
-        const hashedPassword = await bcrypt.hash(Password, 10);
-        const newUser = await pool.query(
-            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\",\"Role\", \"Createdat\" ) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *",
-            [Firstname, Lastname, Email, hashedPassword ,userRole]
+        // Create a new swap request
+        const newRequest = await pool.query(
+            `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
+             VALUES ($1, $2, $3) 
+             RETURNING id`,
+            [userId, itemId, offeredItemId]
         );
 
-        console.log("New user created:", newUser.rows[0]); // Logging the created user
-
-        if (!newUser.rows[0].id) {
-            return res.status(500).json({ error: "User  creation failed, ID not found." });
-        }
-
-        // Generate an activation token
-        const token = crypto.randomBytes(20).toString('hex');
-
-        // Store the token in ActivationToken table using the correct key
-        await pool.query(
-            "INSERT INTO \"ActivationToken\" (\"id\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
-            [newUser.rows[0].id, token]  // Use 'id' here
+        // Fetch the item's title
+        const itemResult = await pool.query(
+            `SELECT title FROM item WHERE id = $1`,
+            [itemId]
         );
 
-        // Create the activation link using your production URL
-        // const activationLink = `https://liwedoc.vercel.app/${token}`;
-        const activationLink = `https://liwedoc.vercel.app/activate/${token}`;
-        // const baseUrl = process.env.NODE_ENV === 'production' 
-        //     ? 'https://liwedoc.vercel.app'
-        //     : 'http://localhost:3000';
-            
-        // const activationLink = `${baseUrl}/activate/${token}`;
+        // Fetch the user's name
+        const userResult = await pool.query(
+            `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
+            [userId]
+        );
 
+        if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
+            const itemTitle = itemResult.rows[0].title;
+            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
-        // Send activation email
-        await transporter.sendMail({
-            to: Email,
-            subject: "Account Activation",
-            text: `Please activate your account by clicking the following link: ${activationLink}`
-        });
+            // Fetch the item's owner user ID
+            const itemOwner = await pool.query(
+                `SELECT user_id FROM item WHERE id = $1`,
+                [itemId]
+            );
 
-        return res.status(201).json({ message: "User  created. Please check your email to activate your account." });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Internal Server Error" });
+            if (itemOwner.rows.length > 0) {
+                const ownerId = itemOwner.rows[0].user_id;
+
+                // Create a notification for the owner
+                await pool.query(
+                    `INSERT INTO notifications (user_id, message, created_at) 
+                     VALUES ($1, $2, NOW())`,
+                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`]
+                );
+            }
+        }
+
+        return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
+    } catch (error) {
+        console.error('Error saving swap request:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
 
