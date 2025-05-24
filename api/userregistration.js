@@ -1058,6 +1058,31 @@ app.get("/postservice/:userId", async (req, res) => {
   }
 });
 
+// POST route to send a swap request
+app.post('/api/swap-request', async (req, res) => {
+    const { userId, itemId, offeredItemId } = req.body;
+
+    // Validate request data
+    if (!userId || !itemId || !offeredItemId) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    try {
+        // Create a new swap request
+        const newRequest = await pool.query(
+            `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
+             VALUES ($1, $2, $3) 
+             RETURNING id`,
+            [userId, itemId, offeredItemId]
+        );
+
+        return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
+    } catch (error) {
+        console.error('Error saving swap request:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
 // Start server
 
 app.listen(PORT, () => {
