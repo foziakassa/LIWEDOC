@@ -31,10 +31,7 @@
    
     
     
-    {
-      "src": "/api/notifications/(.*)",
-      "dest": "/api/notifications.js"
-    },
+   
     {
       "src": "/api/messages/(.*)",
       "dest": "/api/messages.js"
