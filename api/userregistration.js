@@ -98,64 +98,6 @@ app.get("/users/:id", async (req, res) => {
     }
 });
 
-// POST route to send a swap request
-app.post('/api/swap-request', async (req, res) => {
-    const { userId, itemId, offeredItemId } = req.body;
-
-    // Validate request data
-    if (!userId || !itemId || !offeredItemId) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-
-    try {
-        // Create a new swap request
-        const newRequest = await pool.query(
-            `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
-             VALUES ($1, $2, $3) 
-             RETURNING id`,
-            [userId, itemId, offeredItemId]
-        );
-
-        // Fetch the item's title
-        const itemResult = await pool.query(
-            `SELECT title FROM item WHERE id = $1`,
-            [itemId]
-        );
-
-        // Fetch the user's full name
-        const userResult = await pool.query(
-            `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
-            [userId]
-        );
-
-        if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
-            const itemTitle = itemResult.rows[0].title;
-            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`; // Full name
-
-            // Fetch the item's owner user ID
-            const itemOwner = await pool.query(
-                `SELECT user_id FROM item WHERE id = $1`,
-                [itemId]
-            );
-
-            if (itemOwner.rows.length > 0) {
-                const ownerId = itemOwner.rows[0].user_id;
-
-                // Create a notification for the owner
-                await pool.query(
-                    `INSERT INTO notifications (user_id, message, created_at) 
-                     VALUES ($1, $2, NOW())`,
-                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`]
-                );
-            }
-        }
-
-        return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
-    } catch (error) {
-        console.error('Error saving swap request:', error);
-        return res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-});
 
 
 /// Image uplode api
@@ -1058,7 +1000,7 @@ app.get("/postservice/:userId", async (req, res) => {
   }
 });
 
-// POST route to send a swap request
+
 // POST route to send a swap request
 app.post('/api/swap-request', async (req, res) => {
     const { userId, itemId, offeredItemId } = req.body;
@@ -1077,27 +1019,38 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
-        // Fetch the item's title and the user's name
+        // Fetch the item's title
         const itemResult = await pool.query(
             `SELECT title FROM item WHERE id = $1`,
             [itemId]
         );
 
+        // Fetch the user's full name
         const userResult = await pool.query(
-            `SELECT Firstname, Lastname FROM "user" WHERE id = $1`,
+            `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
             [userId]
         );
 
         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
             const itemTitle = itemResult.rows[0].title;
-            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`; // Full name
 
-            // Create a notification for the owner
-            await pool.query(
-                `INSERT INTO notifications (user_id, message, created_at) 
-                 VALUES ($1, $2, NOW())`,
-                [itemOwnerId, `${userName} is interested in swapping "${itemTitle}"`]
+            // Fetch the item's owner user ID
+            const itemOwner = await pool.query(
+                `SELECT user_id FROM item WHERE id = $1`,
+                [itemId]
             );
+
+            if (itemOwner.rows.length > 0) {
+                const ownerId = itemOwner.rows[0].user_id;
+
+                // Create a notification for the owner
+                await pool.query(
+                    `INSERT INTO notifications (user_id, message, created_at) 
+                     VALUES ($1, $2, NOW())`,
+                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`]
+                );
+            }
         }
 
         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
