@@ -1076,37 +1076,48 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
+        // Fetch the item's owner user ID
+        const itemOwner = await pool.query(
+            `SELECT user_id FROM item WHERE id = $1`,
+            [itemId]
+        );
+
+        if (itemOwner.rows.length > 0) {
+            const ownerId = itemOwner.rows[0].user_id;
+
+            // Create a notification for the owner
+            await pool.query(
+                `INSERT INTO notifications (user_id, message, created_at) 
+                 VALUES ($1, $2, NOW())`,
+                [ownerId, `User ${userId} is interested in swapping item ${itemId}`]
+            );
+        }
+
         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
     } catch (error) {
         console.error('Error saving swap request:', error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 // GET route to fetch all swap requests
 app.get('/api/swap-requests', async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT * FROM swap_requests`
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'No swap requests found.' });
-        }
-
+        const result = await pool.query(`SELECT * FROM swap_requests`);
         return res.status(200).json({ success: true, requests: result.rows });
     } catch (error) {
         console.error('Error fetching swap requests:', error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 // GET route to fetch swap requests for a specific user
 app.get('/api/swap-requests/:userId', async (req, res) => {
     const userId = req.params.userId;
 
     try {
         const result = await pool.query(
-            `SELECT * FROM swap_requests 
-             WHERE user_id = $1`,
+            `SELECT * FROM swap_requests WHERE user_id = $1`,
             [userId]
         );
 
@@ -1120,6 +1131,7 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 // Start server
 
 app.listen(PORT, () => {
