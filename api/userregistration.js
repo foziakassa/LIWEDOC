@@ -98,7 +98,6 @@ app.get("/users/:id", async (req, res) => {
     }
 });
 
-// POST route to create a new user
 // POST route to send a swap request
 app.post('/api/swap-request', async (req, res) => {
     const { userId, itemId, offeredItemId } = req.body;
@@ -123,7 +122,7 @@ app.post('/api/swap-request', async (req, res) => {
             [itemId]
         );
 
-        // Fetch the user's name
+        // Fetch the user's full name
         const userResult = await pool.query(
             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
             [userId]
@@ -131,7 +130,7 @@ app.post('/api/swap-request', async (req, res) => {
 
         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
             const itemTitle = itemResult.rows[0].title;
-            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`; // Full name
 
             // Fetch the item's owner user ID
             const itemOwner = await pool.query(
