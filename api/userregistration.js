@@ -1092,6 +1092,44 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
     }
 });
 // GET route to fetch notifications for a specific user
+// POST route to accept a swap request
+app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
+    const requestId = req.params.requestId;
+
+    try {
+        // Update the status of the swap request
+        await pool.query(
+            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1`,
+            [requestId]
+        );
+
+        // Optionally, create a notification for the user who sent the request
+        return res.status(200).json({ success: true, message: 'Swap request accepted' });
+    } catch (error) {
+        console.error('Error accepting swap request:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// POST route to reject a swap request
+app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
+    const requestId = req.params.requestId;
+
+    try {
+        // Update the status of the swap request
+        await pool.query(
+            `DELETE FROM swap_requests WHERE id = $1`,
+            [requestId]
+        );
+
+        return res.status(200).json({ success: true, message: 'Swap request rejected' });
+    } catch (error) {
+        console.error('Error rejecting swap request:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// GET route to fetch notifications for a specific user
 app.get('/api/notifications/:userId', async (req, res) => {
     const userId = req.params.userId;
 
@@ -1111,6 +1149,7 @@ app.get('/api/notifications/:userId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 // Start server
 
 app.listen(PORT, () => {
