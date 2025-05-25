@@ -1007,13 +1007,11 @@ app.get("/postservice/:userId", async (req, res) => {
 app.post('/api/swap-request', async (req, res) => {
     const { userId, itemId, offeredItemId } = req.body;
 
-    // Validate request data
     if (!userId || !itemId || !offeredItemId) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     try {
-        // Create a new swap request
         const newRequest = await pool.query(
             `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
              VALUES ($1, $2, $3) 
@@ -1021,13 +1019,11 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
-        // Fetch the item's title
         const itemResult = await pool.query(
             `SELECT title FROM item WHERE id = $1`,
             [itemId]
         );
 
-        // Fetch the user's full name
         const userResult = await pool.query(
             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
             [userId]
@@ -1035,9 +1031,8 @@ app.post('/api/swap-request', async (req, res) => {
 
         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
             const itemTitle = itemResult.rows[0].title;
-            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`; // Full name
+            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
-            // Fetch the item's owner user ID
             const itemOwner = await pool.query(
                 `SELECT user_id FROM item WHERE id = $1`,
                 [itemId]
@@ -1046,7 +1041,6 @@ app.post('/api/swap-request', async (req, res) => {
             if (itemOwner.rows.length > 0) {
                 const ownerId = itemOwner.rows[0].user_id;
 
-                // Create a notification for the owner
                 await pool.query(
                     `INSERT INTO notifications (user_id, message, created_at) 
                      VALUES ($1, $2, NOW())`,
@@ -1093,8 +1087,7 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
-// GET route to fetch notifications for a specific user
-// POST route to accept a swap request
+
 // POST route to accept a swap request
 app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
     const requestId = req.params.requestId;
@@ -1119,8 +1112,6 @@ app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
         );
 
         // Optionally, create a notification for the user who sent the request
-        // (You might want to notify the user that their request was accepted)
-        
         return res.status(200).json({ success: true, message: 'Swap request accepted' });
     } catch (error) {
         console.error('Error accepting swap request:', error);
@@ -1133,7 +1124,6 @@ app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
     const requestId = req.params.requestId;
 
     try {
-        // Update the status of the swap request
         await pool.query(
             `DELETE FROM swap_requests WHERE id = $1`,
             [requestId]
