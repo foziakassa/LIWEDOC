@@ -1093,17 +1093,32 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
 });
 // GET route to fetch notifications for a specific user
 // POST route to accept a swap request
+// POST route to accept a swap request
 app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
     const requestId = req.params.requestId;
 
     try {
-        // Update the status of the swap request
-        await pool.query(
-            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1`,
+        // Update the status of the swap request to 'accepted'
+        const requestResult = await pool.query(
+            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1 RETURNING item_id, offered_item_id`,
             [requestId]
         );
 
+        if (requestResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Swap request not found' });
+        }
+
+        const { item_id, offered_item_id } = requestResult.rows[0];
+
+        // Update the status of the items involved in the swap
+        await pool.query(
+            `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
+            [item_id, offered_item_id]
+        );
+
         // Optionally, create a notification for the user who sent the request
+        // (You might want to notify the user that their request was accepted)
+        
         return res.status(200).json({ success: true, message: 'Swap request accepted' });
     } catch (error) {
         console.error('Error accepting swap request:', error);
