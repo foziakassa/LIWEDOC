@@ -1041,10 +1041,11 @@ app.post('/api/swap-request', async (req, res) => {
             if (itemOwner.rows.length > 0) {
                 const ownerId = itemOwner.rows[0].user_id;
 
+                // Insert notification with both item IDs
                 await pool.query(
-                    `INSERT INTO notifications (user_id, message, created_at) 
-                     VALUES ($1, $2, NOW())`,
-                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`]
+                    `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id) 
+                     VALUES ($1, $2, NOW(), $3, $4)`,
+                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
                 );
             }
         }
@@ -1055,7 +1056,6 @@ app.post('/api/swap-request', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
-
 // GET route to fetch all swap requests
 app.get('/api/swap-requests', async (req, res) => {
     try {
@@ -1093,17 +1093,23 @@ app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
     const requestId = req.params.requestId;
 
     try {
-        // Update the status of the swap request to 'accepted'
-        const requestResult = await pool.query(
-            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1 RETURNING item_id, offered_item_id`,
+        // Fetch notification to get item IDs
+        const notificationResult = await pool.query(
+            `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
             [requestId]
         );
 
-        if (requestResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Swap request not found' });
+        if (notificationResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Notification not found' });
         }
 
-        const { item_id, offered_item_id } = requestResult.rows[0];
+        const { item_id, offered_item_id } = notificationResult.rows[0];
+
+        // Update the status of the swap request to 'accepted'
+        await pool.query(
+            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1`,
+            [requestId]
+        );
 
         // Update the status of the items involved in the swap
         await pool.query(
@@ -1111,7 +1117,6 @@ app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
             [item_id, offered_item_id]
         );
 
-        // Optionally, create a notification for the user who sent the request
         return res.status(200).json({ success: true, message: 'Swap request accepted' });
     } catch (error) {
         console.error('Error accepting swap request:', error);
