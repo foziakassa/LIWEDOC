@@ -1161,6 +1161,66 @@ app.get('/api/notifications/:userId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+/////// 
+// Accept swap by notification ID
+app.post('/api/notifications/accept/:notificationId', async (req, res) => {
+  const notificationId = req.params.notificationId;
+
+  try {
+    const notif = await pool.query(
+      `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
+      [notificationId]
+    );
+
+    if (notif.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    const { item_id, offered_item_id } = notif.rows[0];
+
+    await pool.query(
+      `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
+      [item_id, offered_item_id]
+    );
+
+    // Optionally update swap_requests status or remove notification here
+
+    return res.status(200).json({ success: true, message: 'Items accepted and status updated' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+});
+
+// Reject swap by notification ID
+app.post('/api/notifications/reject/:notificationId', async (req, res) => {
+  const notificationId = req.params.notificationId;
+
+  try {
+    const notif = await pool.query(
+      `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
+      [notificationId]
+    );
+
+    if (notif.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    const { item_id, offered_item_id } = notif.rows[0];
+
+    await pool.query(
+      `UPDATE item SET status = 'available' WHERE id = $1 OR id = $2`,
+      [item_id, offered_item_id]
+    );
+
+    // Optionally delete swap_requests and notification entries here
+
+    return res.status(200).json({ success: true, message: 'Items rejected and status updated' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+});
 
 // Start server
 
