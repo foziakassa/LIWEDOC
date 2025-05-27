@@ -1124,57 +1124,57 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
 });
 
 // POST route to accept a swap request
-app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
-    const requestId = req.params.requestId;
+// app.post('/api/swap-requests/accept/:requestId', async (req, res) => {
+//     const requestId = req.params.requestId;
 
-    try {
-        // Fetch notification to get item IDs
-        const notificationResult = await pool.query(
-            `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
-            [requestId]
-        );
+//     try {
+//         // Fetch notification to get item IDs
+//         const notificationResult = await pool.query(
+//             `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
+//             [requestId]
+//         );
 
-        if (notificationResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Notification not found' });
-        }
+//         if (notificationResult.rows.length === 0) {
+//             return res.status(404).json({ success: false, message: 'Notification not found' });
+//         }
 
-        const { item_id, offered_item_id } = notificationResult.rows[0];
+//         const { item_id, offered_item_id } = notificationResult.rows[0];
 
-        // Update the status of the swap request to 'accepted'
-        await pool.query(
-            `UPDATE swap_requests SET status = 'accepted' WHERE id = $1`,
-            [requestId]
-        );
+//         // Update the status of the swap request to 'accepted'
+//         await pool.query(
+//             `UPDATE swap_requests SET status = 'accepted' WHERE id = $1`,
+//             [requestId]
+//         );
 
-        // Update the status of the items involved in the swap
-        await pool.query(
-            `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
-            [item_id, offered_item_id]
-        );
+//         // Update the status of the items involved in the swap
+//         await pool.query(
+//             `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
+//             [item_id, offered_item_id]
+//         );
 
-        return res.status(200).json({ success: true, message: 'Swap request accepted' });
-    } catch (error) {
-        console.error('Error accepting swap request:', error);
-        return res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-});
+//         return res.status(200).json({ success: true, message: 'Swap request accepted' });
+//     } catch (error) {
+//         console.error('Error accepting swap request:', error);
+//         return res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
 
 // POST route to reject a swap request
-app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
-    const requestId = req.params.requestId;
+// app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
+//     const requestId = req.params.requestId;
 
-    try {
-        await pool.query(
-            `DELETE FROM swap_requests WHERE id = $1`,
-            [requestId]
-        );
+//     try {
+//         await pool.query(
+//             `DELETE FROM swap_requests WHERE id = $1`,
+//             [requestId]
+//         );
 
-        return res.status(200).json({ success: true, message: 'Swap request rejected' });
-    } catch (error) {
-        console.error('Error rejecting swap request:', error);
-        return res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-});
+//         return res.status(200).json({ success: true, message: 'Swap request rejected' });
+//     } catch (error) {
+//         console.error('Error rejecting swap request:', error);
+//         return res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
 
 // GET route to fetch notifications for a specific user
 app.get('/api/notifications/:userId', async (req, res) => {
