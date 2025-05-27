@@ -1184,21 +1184,28 @@ app.post('/api/notifications/accept/:notificationId', async (req, res) => {
       [item_id, offered_item_id]
     );
 
+    // Log before updating notifications
+    console.log("Updating notification as accepted:", notificationId);
+    
     // Update the notification as accepted
-    await pool.query(
+    const updateResult = await pool.query(
       `UPDATE notifications SET accepted = true WHERE id = $1`,
       [notificationId]
     );
 
-    // Optionally update swap_requests status or remove notification here
+    // Check if update was successful
+    if (updateResult.rowCount === 0) {
+      console.warn("No rows updated for notification:", notificationId);
+    } else {
+      console.log("Notification updated successfully:", notificationId);
+    }
 
     return res.status(200).json({ success: true, message: 'Items accepted and status updated' });
   } catch (error) {
-    console.error(error);
+    console.error("Error in accept notification:", error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
-
 // Reject swap by notification ID
 app.post('/api/notifications/reject/:notificationId', async (req, res) => {
   const notificationId = req.params.notificationId;
