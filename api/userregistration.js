@@ -832,7 +832,7 @@ app.get("/swappeditem/:userId", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT * FROM item WHERE user_id = $1 AND status == 'swapped' ORDER BY createdat DESC",
+      "SELECT * FROM item WHERE user_id = $1 AND status = 'swapped' ORDER BY createdat DESC",
       [user_id]
     );
     if (result.rows.length === 0) {
