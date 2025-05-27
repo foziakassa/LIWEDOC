@@ -705,38 +705,6 @@ app.get("/api/items/:id", async (req, res) => {
   try {
     const result = await pool.query(
       `
-      SELECT * FROM item WHERE id = $1 WHERE status != 'swapped'
-      `,
-      [itemId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Item not found",
-      });
-    }
-
-    const item = result.rows[0];
-    return res.status(200).json({
-      success: true,
-      item,
-    });
-  } catch (error) {
-    console.error("Error fetching item:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch item",
-    });
-  }
-});
-
-app.get("/api/allitems/:id", async (req, res) => {
-  const itemId = req.params.id;
-
-  try {
-    const result = await pool.query(
-      `
       SELECT * FROM item WHERE id = $1
       `,
       [itemId]
@@ -762,6 +730,7 @@ app.get("/api/allitems/:id", async (req, res) => {
     });
   }
 });
+
 // Fetch all items endpoint
 app.get("/items", async (req, res) => {
   try {
@@ -780,23 +749,7 @@ app.get("/items", async (req, res) => {
     });
   }
 });
-app.get("/ allitems", async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT * FROM item  ORDER BY createdat DESC"
-    );
-    return res.status(200).json({
-      success: true,
-      items: result.rows,
-    });
-  } catch (error) {
-    console.error("Error fetching items:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch items",
-    });
-  }
-});
+
 cloudinary.config({
   cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
   api_key: process.env.CLOUDERY_API_KEY,       // Replace with your Cloudinary API key
