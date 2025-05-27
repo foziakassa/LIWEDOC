@@ -826,6 +826,24 @@ app.get("/postitem/:userId", async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to fetch items' });
   }
 });
+app.get("/swappeditem/:userId", async (req, res) => {
+  const user_id = req.params.userId;
+    // const charityId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM item WHERE user_id = $1 AND status == 'swapped' ORDER BY createdat DESC",
+      [user_id]
+    );
+    if (result.rows.length === 0) {
+            return res.status(404).json({ error: "item not found." });
+        }
+    return res.status(200).json({ success: true, items: result.rows });
+  } catch (error) {
+    console.error('Error fetching user items:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch items' });
+  }
+});
 /// service api 
 
 const serviceSchema = z.object({
