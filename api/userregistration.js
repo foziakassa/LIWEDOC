@@ -1216,7 +1216,7 @@ app.post('/api/notifications/reject/:notificationId', async (req, res) => {
     const { item_id, offered_item_id } = notif.rows[0];
 
     await pool.query(
-      `UPDATE item SET status = 'available' WHERE id = $1 OR id = $2`,
+      `UPDATE item SET status = 'draft' WHERE id = $1 OR id = $2`,
       [item_id, offered_item_id]
     );
 
