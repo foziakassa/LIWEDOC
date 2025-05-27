@@ -1103,22 +1103,57 @@ app.get('/api/swap-requests', async (req, res) => {
 });
 
 // GET route to fetch swap requests for a specific user
-app.get('/api/swap-requests/:userId', async (req, res) => {
-    const userId = req.params.userId;
+app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
+    const notificationId = req.params.notificationId;
 
     try {
-        const result = await pool.query(
-            `SELECT * FROM swap_requests WHERE user_id = $1`,
-            [userId]
+        // Fetch the item IDs associated with the notification
+        const notif = await pool.query(
+            `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
+            [notificationId]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'No swap requests found for this user.' });
+        if (notif.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Notification not found' });
         }
 
-        return res.status(200).json({ success: true, requests: result.rows });
+        const { item_id, offered_item_id } = notif.rows[0];
+
+        // Fetch the email of the user who owns the item
+        const itemOwnerEmail = await pool.query(
+            `SELECT "email" FROM "item" WHERE id = $1`,
+            [item_id]
+        );
+
+        if (itemOwnerEmail.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Item owner not found' });
+        }
+
+        const Email = itemOwnerEmail.rows[0].email;
+
+        // Update item statuses to 'swapped'
+        await pool.query(
+            `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
+            [item_id, offered_item_id]
+        );
+
+        // Update the notification as accepted
+        await pool.query(
+            `UPDATE notifications SET accepted = true WHERE id = $1`,
+            [notificationId]
+        );
+
+        // Send email notification
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER, // Sender address
+            to: Email,                     // List of recipients
+            subject: 'Swap Request Accepted', // Subject line
+            text: 'Your swap request has been accepted!', // Plain text body
+        });
+
+        return res.status(200).json({ success: true, message: 'Items accepted and status updated' });
     } catch (error) {
-        console.error('Error fetching swap requests:', error);
+        console.error(error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
@@ -1160,21 +1195,21 @@ app.get('/api/swap-requests/:userId', async (req, res) => {
 // });
 
 // POST route to reject a swap request
-// app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
-//     const requestId = req.params.requestId;
+app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
+    const requestId = req.params.requestId;
 
-//     try {
-//         await pool.query(
-//             `DELETE FROM swap_requests WHERE id = $1`,
-//             [requestId]
-//         );
+    try {
+        await pool.query(
+            `DELETE FROM swap_requests WHERE id = $1`,
+            [requestId]
+        );
 
-//         return res.status(200).json({ success: true, message: 'Swap request rejected' });
-//     } catch (error) {
-//         console.error('Error rejecting swap request:', error);
-//         return res.status(500).json({ success: false, message: 'Internal Server Error' });
-//     }
-// });
+        return res.status(200).json({ success: true, message: 'Swap request rejected' });
+    } catch (error) {
+        console.error('Error rejecting swap request:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
 
 // GET route to fetch notifications for a specific user
 app.get('/api/notifications/:userId', async (req, res) => {
