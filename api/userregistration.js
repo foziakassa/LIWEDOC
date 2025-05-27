@@ -1146,7 +1146,7 @@ app.get('/api/notifications/:userId', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+            `SELECT * FROM notifications WHERE user_id = $1 AND accepted = false ORDER BY created_at DESC`,
             [userId]
         );
 
