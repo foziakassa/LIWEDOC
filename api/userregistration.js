@@ -1152,6 +1152,7 @@ app.post('/api/swap-request', async (req, res) => {
     }
 
     try {
+        // Insert new swap request
         const newRequest = await pool.query(
             `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
              VALUES ($1, $2, $3) 
@@ -1159,38 +1160,59 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
-        // Fetch the item details, including the owner's email
+        // Fetch item details including owner's email
         const itemResult = await pool.query(
             `SELECT title, email, user_id FROM item WHERE id = $1`,
             [itemId]
         );
 
+        // Fetch offered item title
+        const offeredItemResult = await pool.query(
+            `SELECT title FROM item WHERE id = $1`,
+            [offeredItemId]
+        );
+
+        // Fetch requesting user's name
         const userResult = await pool.query(
             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
             [userId]
         );
 
-        if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
+        if (
+            itemResult.rows.length > 0 &&
+            userResult.rows.length > 0 &&
+            offeredItemResult.rows.length > 0
+        ) {
             const itemTitle = itemResult.rows[0].title;
+            const offeredItemTitle = offeredItemResult.rows[0].title;
             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
             const ownerEmail = itemResult.rows[0].email;
-            const productLink = `http://localhost:3000/products/${itemId}`;
+            const productLink = `http://localhost:3000/products/${itemId}`; // Change domain as needed
 
-            // Insert notification for the owner
+            // Compose message with both item titles
+            const message = `${userName} is interested in swapping "${itemTitle}" for your item "${offeredItemTitle}"`;
+
+            // Insert notification for the owner with product link
             await pool.query(
-                `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id) 
-                 VALUES ($1, $2, NOW(), $3, $4)`,
-                [itemResult.rows[0].user_id, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
+                `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id, product_link) 
+                 VALUES ($1, $2, NOW(), $3, $4, $5)`,
+                [
+                    itemResult.rows[0].user_id,
+                    message,
+                    itemId,
+                    offeredItemId,
+                    productLink
+                ]
             );
 
-            // Send email notification with link
+            // Send email notification with product link and message
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
                 to: ownerEmail,
                 subject: 'New Swap Request',
-                text: `${userName} is interested in swapping "${itemTitle}". View the product here: ${productLink}`,
+                text: `${message}. View the product here: ${productLink}`,
                 html: `
-                    <p>${userName} is interested in swapping "<strong>${itemTitle}</strong>".</p>
+                    <p>${message}.</p>
                     <p>View the product: <a href="${productLink}">${productLink}</a></p>
                 `
             });
@@ -1202,6 +1224,7 @@ app.post('/api/swap-request', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 
 // GET route to fetch all swap requests
 app.get('/api/swap-requests', async (req, res) => {
