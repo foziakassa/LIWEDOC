@@ -1166,6 +1166,7 @@ app.post('/api/notifications/accept/:notificationId', async (req, res) => {
   const notificationId = req.params.notificationId;
 
   try {
+    // Fetch the item IDs associated with the notification
     const notif = await pool.query(
       `SELECT item_id, offered_item_id FROM notifications WHERE id = $1`,
       [notificationId]
@@ -1177,9 +1178,16 @@ app.post('/api/notifications/accept/:notificationId', async (req, res) => {
 
     const { item_id, offered_item_id } = notif.rows[0];
 
+    // Update item statuses to 'swapped'
     await pool.query(
       `UPDATE item SET status = 'swapped' WHERE id = $1 OR id = $2`,
       [item_id, offered_item_id]
+    );
+
+    // Update the notification as accepted
+    await pool.query(
+      `UPDATE notifications SET accepted = true WHERE id = $1`,
+      [notificationId]
     );
 
     // Optionally update swap_requests status or remove notification here
