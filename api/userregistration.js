@@ -1091,6 +1091,59 @@ app.get("/postservice/:userId", async (req, res) => {
 //         return res.status(500).json({ success: false, message: 'Internal Server Error' });
 //     }
 // });
+// app.post('/api/swap-request', async (req, res) => {
+//     const { userId, itemId, offeredItemId } = req.body;
+
+//     if (!userId || !itemId || !offeredItemId) {
+//         return res.status(400).json({ success: false, message: 'Missing required fields' });
+//     }
+
+//     try {
+//         const newRequest = await pool.query(
+//             `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
+//              VALUES ($1, $2, $3) 
+//              RETURNING id`,
+//             [userId, itemId, offeredItemId]
+//         );
+
+//         // Fetch the item details, including the owner's email
+//         const itemResult = await pool.query(
+//             `SELECT title, email, user_id FROM item WHERE id = $1`,
+//             [itemId]
+//         );
+
+//         const userResult = await pool.query(
+//             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
+//             [userId]
+//         );
+
+//         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
+//             const itemTitle = itemResult.rows[0].title;
+//             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+//             const ownerEmail = itemResult.rows[0].email; // Get owner's email
+
+//             // Insert notification for the owner
+//             await pool.query(
+//                 `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id) 
+//                  VALUES ($1, $2, NOW(), $3, $4)`,
+//                 [itemResult.rows[0].user_id, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
+//             );
+
+//             // Send email notification
+//             await transporter.sendMail({
+//                 from: process.env.EMAIL_USER, // Sender address
+//                 to: ownerEmail,                // Recipient's email
+//                 subject: 'New Swap Request',   // Subject line
+//                 text: `${userName} is interested in swapping "${itemTitle}".`, // Plain text body
+//             });
+//         }
+
+//         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
+//     } catch (error) {
+//         console.error('Error saving swap request:', error);
+//         return res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
 app.post('/api/swap-request', async (req, res) => {
     const { userId, itemId, offeredItemId } = req.body;
 
@@ -1120,7 +1173,8 @@ app.post('/api/swap-request', async (req, res) => {
         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
             const itemTitle = itemResult.rows[0].title;
             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
-            const ownerEmail = itemResult.rows[0].email; // Get owner's email
+            const ownerEmail = itemResult.rows[0].email;
+            const productLink = `https://liwedoc.vercel.app/products/${itemId}`;
 
             // Insert notification for the owner
             await pool.query(
@@ -1129,12 +1183,16 @@ app.post('/api/swap-request', async (req, res) => {
                 [itemResult.rows[0].user_id, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
             );
 
-            // Send email notification
+            // Send email notification with link
             await transporter.sendMail({
-                from: process.env.EMAIL_USER, // Sender address
-                to: ownerEmail,                // Recipient's email
-                subject: 'New Swap Request',   // Subject line
-                text: `${userName} is interested in swapping "${itemTitle}".`, // Plain text body
+                from: process.env.EMAIL_USER,
+                to: ownerEmail,
+                subject: 'New Swap Request',
+                text: `${userName} is interested in swapping "${itemTitle}". View the product here: ${productLink}`,
+                html: `
+                    <p>${userName} is interested in swapping "<strong>${itemTitle}</strong>".</p>
+                    <p>View the product: <a href="${productLink}">${productLink}</a></p>
+                `
             });
         }
 
@@ -1144,6 +1202,7 @@ app.post('/api/swap-request', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 // GET route to fetch all swap requests
 app.get('/api/swap-requests', async (req, res) => {
     try {
