@@ -80,25 +80,64 @@ app.get("/users", async (req, res) => {
 
 // get by id 
 
-// GET route to retrieve a user by ID
-app.get("/users/:id", async (req, res) => {
-    const userId = req.params.id;
+// POST route to create a new user
+app.post("/users", async (req, res) => {
+    const { Firstname, Lastname, Email, Password , Role } = req.body;
+    const userRole = Role || "User";
+    if (!Firstname || !Lastname || !Email || !Password) {
+        return res.status(400).json({ error: "All fields are required." });
+    }
 
     try {
-        const user = await pool.query("SELECT * FROM \"user\" WHERE \"id\" = $1 AND \"Deletedat\" IS NULL", [userId]);
-
-        if (user.rows.length === 0) {
-            return res.status(404).json({ error: "User not found." });
+        const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"Email\" = $1", [Email]);
+        if (userCheck.rows.length > 0) {
+            return res.status(400).json({ error: "User  already exists." });
         }
 
-        res.status(200).json(user.rows[0]);
+        const hashedPassword = await bcrypt.hash(Password, 10);
+        const newUser = await pool.query(
+            "INSERT INTO \"user\" (\"Firstname\", \"Lastname\", \"Email\", \"Password\",\"Role\", \"Createdat\" ) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *",
+            [Firstname, Lastname, Email, hashedPassword ,userRole]
+        );
+
+        console.log("New user created:", newUser.rows[0]); // Logging the created user
+
+        if (!newUser.rows[0].id) {
+            return res.status(500).json({ error: "User  creation failed, ID not found." });
+        }
+
+        // Generate an activation token
+        const token = crypto.randomBytes(20).toString('hex');
+
+        // Store the token in ActivationToken table using the correct key
+        await pool.query(
+            "INSERT INTO \"ActivationToken\" (\"id\", \"Token\", \"Createdat\", \"Expiredat\") VALUES ($1, $2, NOW(), NOW() + interval '1 hour')",
+            [newUser.rows[0].id, token]  // Use 'id' here
+        );
+
+        // Create the activation link using your production URL
+        // const activationLink = `https://liwedoc.vercel.app/${token}`;
+        const activationLink = `https://liwedoc.vercel.app/activate/${token}`;
+        // const baseUrl = process.env.NODE_ENV === 'production' 
+        //     ? 'https://liwedoc.vercel.app'
+        //     : 'http://localhost:3000';
+            
+        // const activationLink = `${baseUrl}/activate/${token}`;
+
+
+        // Send activation email
+        await transporter.sendMail({
+            to: Email,
+            subject: "Account Activation",
+            text: `Please activate your account by clicking the following link: ${activationLink}`
+        });
+
+        return res.status(201).json({ message: "User  created. Please check your email to activate your account." });
     } catch (err) {
-        console.error("Error retrieving user:", err);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
-
 
 /// Image uplode api
 app.post("/users/image", upload.single('image'), async (req, res) => {
@@ -174,33 +213,6 @@ app.get("/activate/:token", async (req, res) => {
     }
 });
 
-// DELETE route to delete a user
-// app.delete("/users/:id", async (req, res) => {
-//     const userId = req.params.id;
-
-//     try {
-//         // Check if the user exists
-//         const userCheck = await pool.query("SELECT * FROM \"user\" WHERE \"id\" = $1", [userId]);
-//         if (userCheck.rows.length === 0) {
-//             return res.status(404).json({ error: "User not found." });
-//         }
-
-//         // Soft delete the user by updating the Deletedat column
-//         const deleteUser = await pool.query(
-//             "UPDATE \"user\" SET \"Deletedat\" = NOW() WHERE \"id\" = $1 RETURNING *",
-//             [userId]
-//         );
-
-//         if (deleteUser.rowCount === 0) {
-//             return res.status(500).json({ error: "Failed to delete user." });
-//         }
-
-//         return res.status(200).json({ message: "User deleted successfully.", user: deleteUser.rows[0] });
-//     } catch (err) {
-//         console.error("Error deleting user:", err);
-//         return res.status(500).json({ error: "Internal Server Error" });
-//     }
-// });
 
 app.delete("/users/:id", async (req, res) => {
     const userId = req.params.id;
