@@ -1174,7 +1174,7 @@ app.post('/api/swap-request', async (req, res) => {
             const itemTitle = itemResult.rows[0].title;
             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
             const ownerEmail = itemResult.rows[0].email;
-            const productLink = `https://liwedoc.vercel.app/products/${itemId}`;
+            const productLink = `http://localhost:3000/products/${itemId}`;
 
             // Insert notification for the owner
             await pool.query(
