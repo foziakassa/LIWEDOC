@@ -79,7 +79,25 @@ app.get("/users", async (req, res) => {
 
 
 // get by id 
+// get by id 
 
+// GET route to retrieve a user by ID
+app.get("/users/:id", async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        const user = await pool.query("SELECT * FROM \"user\" WHERE \"id\" = $1 AND \"Deletedat\" IS NULL", [userId]);
+
+        if (user.rows.length === 0) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        res.status(200).json(user.rows[0]);
+    } catch (err) {
+        console.error("Error retrieving user:", err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 // POST route to create a new user
 app.post("/users", async (req, res) => {
     const { Firstname, Lastname, Email, Password , Role } = req.body;
@@ -240,6 +258,13 @@ app.delete("/users/:id", async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+
+
+
+
+
+
 
 
 
