@@ -1106,8 +1106,9 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, itemId, offeredItemId]
         );
 
+        // Fetch the item details, including the owner's email
         const itemResult = await pool.query(
-            `SELECT title FROM item WHERE id = $1`,
+            `SELECT title, email, user_id FROM item WHERE id = $1`,
             [itemId]
         );
 
@@ -1119,40 +1120,22 @@ app.post('/api/swap-request', async (req, res) => {
         if (itemResult.rows.length > 0 && userResult.rows.length > 0) {
             const itemTitle = itemResult.rows[0].title;
             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+            const ownerEmail = itemResult.rows[0].email; // Get owner's email
 
-            const itemOwner = await pool.query(
-                `SELECT user_id FROM item WHERE id = $1`,
-                [itemId]
+            // Insert notification for the owner
+            await pool.query(
+                `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id) 
+                 VALUES ($1, $2, NOW(), $3, $4)`,
+                [itemResult.rows[0].user_id, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
             );
 
-            if (itemOwner.rows.length > 0) {
-                const ownerId = itemOwner.rows[0].user_id;
-
-                // Insert notification with both item IDs
-                await pool.query(
-                    `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id) 
-                     VALUES ($1, $2, NOW(), $3, $4)`,
-                    [ownerId, `${userName} is interested in swapping "${itemTitle}"`, itemId, offeredItemId]
-                );
-
-                // Fetch the owner's email
-                const ownerEmailResult = await pool.query(
-                    `SELECT "Email" FROM "user" WHERE id = $1`,
-                    [ownerId]
-                );
-
-                if (ownerEmailResult.rows.length > 0) {
-                    const ownerEmail = ownerEmailResult.rows[0].Email;
-
-                    // Send email notification
-                    await transporter.sendMail({
-                        from: process.env.EMAIL_USER, // Sender address
-                        to: ownerEmail,                // Recipient's email
-                        subject: 'New Swap Request',   // Subject line
-                        text: `${userName} is interested in swapping "${itemTitle}".`, // Plain text body
-                    });
-                }
-            }
+            // Send email notification
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER, // Sender address
+                to: ownerEmail,                // Recipient's email
+                subject: 'New Swap Request',   // Subject line
+                text: `${userName} is interested in swapping "${itemTitle}".`, // Plain text body
+            });
         }
 
         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
