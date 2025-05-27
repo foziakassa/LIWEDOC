@@ -789,24 +789,24 @@ app.post('/api/upload', imageUpload.array('image_urls'), async (req, res) => {
 
 
 // get user listing from item table by using user id 
-// app.get("/postitem/:userId", async (req, res) => {
-//   const user_id = req.params.userId;
-//     // const charityId = req.params.id;
+app.get("/allpostitem/:userId", async (req, res) => {
+  const user_id = req.params.userId;
+    // const charityId = req.params.id;
 
-//   try {
-//     const result = await pool.query(
-//       'SELECT * FROM item WHERE user_id = $1 ORDER BY createdat DESC',
-//       [user_id]
-//     );
-//     if (result.rows.length === 0) {
-//             return res.status(404).json({ error: "Charity not found." });
-//         }
-//     return res.status(200).json({ success: true, items: result.rows });
-//   } catch (error) {
-//     console.error('Error fetching user items:', error);
-//     return res.status(500).json({ success: false, message: 'Failed to fetch items' });
-//   }
-// });
+  try {
+    const result = await pool.query(
+      'SELECT * FROM item WHERE user_id = $1 ORDER BY createdat DESC',
+      [user_id]
+    );
+    if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Charity not found." });
+        }
+    return res.status(200).json({ success: true, items: result.rows });
+  } catch (error) {
+    console.error('Error fetching user items:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch items' });
+  }
+});
 
 app.get("/postitem/:userId", async (req, res) => {
   const user_id = req.params.userId;
