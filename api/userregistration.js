@@ -750,6 +750,25 @@ app.get("/items", async (req, res) => {
   }
 });
 
+app.get("/swaped", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM item WHERE status == 'swapped' ORDER BY createdat DESC"
+    );
+    return res.status(200).json({
+      success: true,
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch items",
+    });
+  }
+});
+
+
 cloudinary.config({
   cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
   api_key: process.env.CLOUDERY_API_KEY,       // Replace with your Cloudinary API key
