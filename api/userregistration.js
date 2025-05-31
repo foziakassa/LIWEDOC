@@ -1130,51 +1130,68 @@ app.get("/postservice/:userId", async (req, res) => {
 //         return res.status(500).json({ success: false, message: 'Internal Server Error' });
 //     }
 // });
-app.post('/api/swap-request', async (req, res) => {
-  const { userId, requestedId, requestedType, offeredId, offeredType } = req.body;
 
-  if (
-    !userId ||
-    !requestedId ||
-    !requestedType ||
-    !offeredId ||
-    !offeredType ||
-    !['item', 'service'].includes(requestedType) ||
-    !['item', 'service'].includes(offeredType)
-  ) {
+app.post('/api/swap-request', async (req, res) => {
+  const {
+    userId,
+    requestedId,
+    requestedType,
+    offeredId,
+    offeredType,
+    isMoneyOffer = false,
+    moneyAmount = null,
+  } = req.body;
+
+  // Basic validation
+  if (!userId || !requestedId || !requestedType || !['item', 'service'].includes(requestedType)) {
     return res.status(400).json({ success: false, message: 'Missing or invalid required fields' });
   }
 
-  try {
-    // Insert new swap request
-    const newRequest = await pool.query(
-      `INSERT INTO swap_request (user_id, requested_id, requested_type, offered_id, offered_type) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING id`,
-      [userId, requestedId, requestedType, offeredId, offeredType]
-    );
+  if (isMoneyOffer) {
+    if (moneyAmount == null || isNaN(moneyAmount) || moneyAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid money amount' });
+    }
+  } else {
+    if (!offeredId || !offeredType || !['item', 'service'].includes(offeredType)) {
+      return res.status(400).json({ success: false, message: 'Missing or invalid offered item/service' });
+    }
+  }
 
-    // Helper to fetch entity details
-    const fetchEntityDetails = async (type, id) => {
+  try {
+    // Insert swap request with money offer option
+    const insertQuery = `
+      INSERT INTO swap_request
+      (user_id, requested_id, requested_type, offered_id, offered_type, is_money_offer, money_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `;
+
+    const insertValues = [
+      userId,
+      requestedId,
+      requestedType,
+      isMoneyOffer ? null : offeredId,
+      isMoneyOffer ? null : offeredType,
+      isMoneyOffer,
+      isMoneyOffer ? moneyAmount : null,
+    ];
+
+    const newRequest = await pool.query(insertQuery, insertValues);
+
+    // Fetch requested entity details
+    const fetchEntity = async (type, id) => {
       if (type === 'item') {
-        const result = await pool.query(`SELECT title, email, user_id FROM item WHERE id = $1`, [id]);
-        return result.rows[0];
+        const res = await pool.query(`SELECT title, email, user_id FROM item WHERE id = $1`, [id]);
+        return res.rows[0];
       } else {
-        const result = await pool.query(`SELECT title, email, user_id FROM service WHERE id = $1`, [id]);
-        return result.rows[0];
+        const res = await pool.query(`SELECT title, email, user_id FROM service WHERE id = $1`, [id]);
+        return res.rows[0];
       }
     };
 
-    // Fetch requested entity details
-    const requestedEntity = await fetchEntityDetails(requestedType, requestedId);
+    const requestedEntity = await fetchEntity(requestedType, requestedId);
     if (!requestedEntity) {
       return res.status(404).json({ success: false, message: `Requested ${requestedType} not found` });
-    }
-
-    // Fetch offered entity details
-    const offeredEntity = await fetchEntityDetails(offeredType, offeredId);
-    if (!offeredEntity) {
-      return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
     }
 
     // Fetch requesting user's name
@@ -1187,52 +1204,57 @@ app.post('/api/swap-request', async (req, res) => {
     }
     const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
-    // Compose product link using the offered entity (the item/service offered by requester)
-    let productLink;
-    if (offeredType === 'item') {
-      productLink = `http://localhost:3000/products/${offeredId}`;
-    } else {
-      productLink = `http://localhost:3000/services/${offeredId}`;
-    }
+    // Compose product link for requested entity
+    const productLink =
+      requestedType === 'item'
+        ? `http://localhost:3000/products/${requestedId}`
+        : `http://localhost:3000/services/${requestedId}`;
 
     // Compose notification message
-    const message = `${userName} is interested in swapping their ${offeredType} "${offeredEntity.title}" for your ${requestedType} "${requestedEntity.title}"`;
+    let message;
+    if (isMoneyOffer) {
+      message = `${userName} is interested in buying your ${requestedType} "${requestedEntity.title}" for $${moneyAmount.toFixed(2)}.`;
+    } else {
+      // Fetch offered entity title
+      const offeredEntity = await fetchEntity(offeredType, offeredId);
+      if (!offeredEntity) {
+        return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
+      }
+      message = `${userName} is interested in swapping their ${offeredType} "${offeredEntity.title}" for your ${requestedType} "${requestedEntity.title}".`;
+    }
 
-    // Insert notification for the owner of requested entity
+    // Insert notification
     await pool.query(
-      `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, product_link) 
-       VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)`,
+      `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, is_money_offer, money_amount, product_link)
+       VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)`,
       [
         requestedEntity.user_id,
         message,
         requestedId,
         requestedType,
-        offeredId,
-        offeredType,
-        productLink
+        isMoneyOffer ? null : offeredId,
+        isMoneyOffer ? null : offeredType,
+        isMoneyOffer,
+        isMoneyOffer ? moneyAmount : null,
+        productLink,
       ]
     );
 
-    // Send email notification to the requested entity's email with offered product link
+    // Send email notification
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: requestedEntity.email,
       subject: 'New Swap Request',
-      text: `${message}. View the offered product here: ${productLink}`,
-      html: `
-        <p>${message}.</p>
-        <p>View the offered product: <a href="${productLink}">${productLink}</a></p>
-      `
+      text: `${message} View it here: ${productLink}`,
+      html: `<p>${message}</p><p>View it here: <a href="${productLink}">${productLink}</a></p>`,
     });
 
     return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
-
   } catch (error) {
     console.error('Error saving swap request:', error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
-
 
 
 
