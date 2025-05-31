@@ -769,7 +769,7 @@ app.get("/swaped", async (req, res) => {
 });
 
 // DELETE /api/items/:id
-app.delete('/api/items/:id', async (req, res) => {
+app.delete('/api/deleteitem/:id', async (req, res) => {
   const itemId = req.params.id;
 
   try {
