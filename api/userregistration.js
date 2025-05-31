@@ -1440,6 +1440,7 @@ app.post('/api/swap-request', async (req, res) => {
 //   }
 // });
 // GET all swap requests
+// GET all swap requests
 app.get('/api/swap-requests', async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM swap_request`);
@@ -1455,9 +1456,9 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
   const notificationId = req.params.notificationId;
 
   try {
-    // Fetch requested and offered IDs and types from notification
+    // Fetch notification details including money offer info
     const notif = await pool.query(
-      `SELECT requested_id, requested_type, offered_id, offered_type FROM notification WHERE id = $1`,
+      `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer FROM notification WHERE id = $1`,
       [notificationId]
     );
 
@@ -1465,27 +1466,28 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
-    const { requested_id, requested_type, offered_id, offered_type } = notif.rows[0];
+    const { requested_id, requested_type, offered_id, offered_type, is_money_offer } = notif.rows[0];
 
-    // Helper to update status for item or service
-    const updateStatus = async (type, id, status) => {
-      if (type === 'item') {
-        await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
-      } else if (type === 'service') {
-        await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
-      }
-    };
+    // If it's NOT a money offer, update item/service statuses
+    if (!is_money_offer) {
+      const updateStatus = async (type, id, status) => {
+        if (type === 'item') {
+          await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
+        } else if (type === 'service') {
+          await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
+        }
+      };
 
-    // Update statuses to 'swapped'
-    await Promise.all([
-      updateStatus(requested_type, requested_id, 'swapped'),
-      updateStatus(offered_type, offered_id, 'swapped'),
-    ]);
+      await Promise.all([
+        updateStatus(requested_type, requested_id, 'swapped'),
+        updateStatus(offered_type, offered_id, 'swapped'),
+      ]);
+    }
 
     // Update notification as accepted
     await pool.query(`UPDATE notification SET accepted = true WHERE id = $1`, [notificationId]);
 
-    // Fetch email from requested entity (item/service)
+    // Fetch email from requested entity (item/service) or handle money offer email logic
     let emailQuery, emailResult;
     if (requested_type === 'item') {
       emailQuery = `SELECT email FROM item WHERE id = $1`;
@@ -1508,7 +1510,7 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
       text: 'Your swap request has been accepted!',
     });
 
-    return res.status(200).json({ success: true, message: 'Items accepted and status updated' });
+    return res.status(200).json({ success: true, message: 'Swap request accepted and status updated' });
 
   } catch (error) {
     console.error('Error accepting swap request:', error);
@@ -1555,9 +1557,8 @@ app.post('/api/notifications/accept/:notificationId', async (req, res) => {
   const notificationId = req.params.notificationId;
 
   try {
-    // Fetch requested and offered IDs and types from notification
     const notif = await pool.query(
-      `SELECT requested_id, requested_type, offered_id, offered_type FROM notification WHERE id = $1`,
+      `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer FROM notification WHERE id = $1`,
       [notificationId]
     );
 
@@ -1565,31 +1566,30 @@ app.post('/api/notifications/accept/:notificationId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
-    const { requested_id, requested_type, offered_id, offered_type } = notif.rows[0];
+    const { requested_id, requested_type, offered_id, offered_type, is_money_offer } = notif.rows[0];
 
-    // Helper to update status for item or service
-    const updateStatus = async (type, id, status) => {
-      if (type === 'item') {
-        await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
-      } else if (type === 'service') {
-        await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
-      }
-    };
+    if (!is_money_offer) {
+      const updateStatus = async (type, id, status) => {
+        if (type === 'item') {
+          await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
+        } else if (type === 'service') {
+          await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
+        }
+      };
 
-    // Update statuses to 'swapped'
-    await Promise.all([
-      updateStatus(requested_type, requested_id, 'swapped'),
-      updateStatus(offered_type, offered_id, 'swapped'),
-    ]);
+      await Promise.all([
+        updateStatus(requested_type, requested_id, 'swapped'),
+        updateStatus(offered_type, offered_id, 'swapped'),
+      ]);
+    }
 
-    // Update notification as accepted
     const updateResult = await pool.query(`UPDATE notification SET accepted = true WHERE id = $1`, [notificationId]);
 
     if (updateResult.rowCount === 0) {
       console.warn("No rows updated for notification:", notificationId);
     }
 
-    return res.status(200).json({ success: true, message: 'Items accepted and status updated' });
+    return res.status(200).json({ success: true, message: 'Notification accepted and status updated' });
 
   } catch (error) {
     console.error('Error accepting notification:', error);
@@ -1602,9 +1602,8 @@ app.post('/api/notifications/reject/:notificationId', async (req, res) => {
   const notificationId = req.params.notificationId;
 
   try {
-    // Fetch requested and offered IDs and types from notification
     const notif = await pool.query(
-      `SELECT requested_id, requested_type, offered_id, offered_type FROM notification WHERE id = $1`,
+      `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer FROM notification WHERE id = $1`,
       [notificationId]
     );
 
@@ -1612,26 +1611,26 @@ app.post('/api/notifications/reject/:notificationId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
-    const { requested_id, requested_type, offered_id, offered_type } = notif.rows[0];
+    const { requested_id, requested_type, offered_id, offered_type, is_money_offer } = notif.rows[0];
 
-    // Helper to update status for item or service
-    const updateStatus = async (type, id, status) => {
-      if (type === 'item') {
-        await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
-      } else if (type === 'service') {
-        await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
-      }
-    };
+    if (!is_money_offer) {
+      const updateStatus = async (type, id, status) => {
+        if (type === 'item') {
+          await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
+        } else if (type === 'service') {
+          await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
+        }
+      };
 
-    // Reset statuses to 'draft' or appropriate status on rejection
-    await Promise.all([
-      updateStatus(requested_type, requested_id, 'draft'),
-      updateStatus(offered_type, offered_id, 'draft'),
-    ]);
+      await Promise.all([
+        updateStatus(requested_type, requested_id, 'draft'),
+        updateStatus(offered_type, offered_id, 'draft'),
+      ]);
+    }
 
-    // Optionally, you may delete or update swap_request and notification entries here
+    // Optionally delete or update swap_request and notification entries here
 
-    return res.status(200).json({ success: true, message: 'Items rejected and status updated' });
+    return res.status(200).json({ success: true, message: 'Notification rejected and status updated' });
 
   } catch (error) {
     console.error('Error rejecting notification:', error);
