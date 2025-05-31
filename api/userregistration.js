@@ -768,6 +768,25 @@ app.get("/swaped", async (req, res) => {
   }
 });
 
+// DELETE /api/items/:id
+app.delete('/api/items/:id', async (req, res) => {
+  const itemId = req.params.id;
+
+  try {
+    const result = await pool.query('DELETE FROM item WHERE id = $1 RETURNING id', [itemId]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Item not found or already deleted.' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Item deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+});
+
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
