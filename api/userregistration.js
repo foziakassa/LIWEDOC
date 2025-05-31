@@ -753,7 +753,7 @@ app.get("/items", async (req, res) => {
 app.get("/swaped", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM item WHERE status == 'swapped' ORDER BY createdat DESC"
+      "SELECT * FROM item WHERE status = 'swapped' ORDER BY createdat DESC"
     );
     return res.status(200).json({
       success: true,
