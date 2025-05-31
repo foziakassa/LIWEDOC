@@ -1131,110 +1131,116 @@ app.get("/postservice/:userId", async (req, res) => {
 //     }
 // });
 app.post('/api/swap-request', async (req, res) => {
-    const { userId, requestedId, requestedType, offeredId, offeredType } = req.body;
+  const { userId, requestedId, requestedType, offeredId, offeredType } = req.body;
 
-    // Validate required fields
-    if (
-        !userId ||
-        !requestedId ||
-        !requestedType ||
-        !offeredId ||
-        !offeredType ||
-        !['item', 'service'].includes(requestedType) ||
-        !['item', 'service'].includes(offeredType)
-    ) {
-        return res.status(400).json({ success: false, message: 'Missing or invalid required fields' });
-    }
+  // Validate required fields
+  if (
+    !userId ||
+    !requestedId ||
+    !requestedType ||
+    !offeredId ||
+    !offeredType ||
+    !['item', 'service'].includes(requestedType) ||
+    !['item', 'service'].includes(offeredType)
+  ) {
+    return res.status(400).json({ success: false, message: 'Missing or invalid required fields' });
+  }
 
-    try {
-        // Insert new swap request
-        const newRequest = await pool.query(
-            `INSERT INTO swap_request (user_id, requested_id, requested_type, offered_id, offered_type) 
-             VALUES ($1, $2, $3, $4, $5) 
-             RETURNING id`,
-            [userId, requestedId, requestedType, offeredId, offeredType]
-        );
+  try {
+    // Insert new swap request
+    const newRequest = await pool.query(
+      `INSERT INTO swap_request (user_id, requested_id, requested_type, offered_id, offered_type) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id`,
+      [userId, requestedId, requestedType, offeredId, offeredType]
+    );
 
-        // Fetch requested entity details //(title, owner id, owner email)
-let requestedQuery, requestedParams;
-if (requestedType === 'item') {
-    requestedQuery = `
-        SELECT i.title, u."Email", u.id AS user_id
+    // Fetch requested entity details (title, owner id, owner email from item/service table)
+    let requestedQuery;
+    if (requestedType === 'item') {
+      requestedQuery = `
+        SELECT i.title, i.email, i.user_id
         FROM item i
-        JOIN "user" u ON i.user_id = u.id
         WHERE i.id = $1
-    `;
-} else {
-    requestedQuery = `
-        SELECT s.title, u."Email", u.id AS user_id
+      `;
+    } else {
+      requestedQuery = `
+        SELECT s.title, s.email, s.user_id
         FROM service s
-        JOIN "user" u ON s.user_id = u.id
         WHERE s.id = $1
-    `;
-}
-requestedParams = [requestedId];
-const requestedResult = await pool.query(requestedQuery, requestedParams);
-        if (requestedResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: `${requestedType} not found` });
-        }
-
-        const { title: requestedTitle, email: ownerEmail, user_id: ownerUserId } = requestedResult.rows[0];
-
-        // Fetch offered entity title
-        let offeredQuery;
-        if (offeredType === 'item') {
-            offeredQuery = `SELECT title FROM item WHERE id = $1`;
-        } else {
-            offeredQuery = `SELECT title FROM service WHERE id = $1`;
-        }
-        const offeredResult = await pool.query(offeredQuery, [offeredId]);
-        if (offeredResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
-        }
-        const offeredTitle = offeredResult.rows[0].title;
-
-        // Fetch requesting user's name
-        const userResult = await pool.query(
-            `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
-            [userId]
-        );
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Requesting user not found' });
-        }
-        const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
-
-        // Compose product/service link (adjust domain and paths as needed)
-        const productLink = `http://localhost:3000/${requestedType}s/${requestedId}`;
-
-        // Compose notification message
-        const message = `${userName} is interested in swapping their ${offeredType} "${offeredTitle}" for your ${requestedType} "${requestedTitle}".`;
-
-        // Insert notification for the owner
-        await pool.query(
-            `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, product_link) 
-             VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)`,
-            [ownerUserId, message, requestedId, requestedType, offeredId, offeredType, productLink]
-        );
-
-        // Send email notification
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: ownerEmail,
-            subject: 'New Swap Request',
-            text: `${message} View it here: ${productLink}`,
-            html: `
-                <p>${message}</p>
-                <p>View it here: <a href="${productLink}">${productLink}</a></p>
-            `
-        });
-
-        // Respond success
-        return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
-    } catch (error) {
-        console.error('Error saving swap request:', error);
-        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+      `;
     }
+
+    const requestedResult = await pool.query(requestedQuery, [requestedId]);
+
+    if (requestedResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: `${requestedType} not found` });
+    }
+
+    const { title: requestedTitle, email: ownerEmail, user_id: ownerUserId } = requestedResult.rows[0];
+
+    // Fetch offered entity title
+    let offeredQuery;
+    if (offeredType === 'item') {
+      offeredQuery = `SELECT title FROM item WHERE id = $1`;
+    } else {
+      offeredQuery = `SELECT title FROM service WHERE id = $1`;
+    }
+
+    const offeredResult = await pool.query(offeredQuery, [offeredId]);
+
+    if (offeredResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
+    }
+
+    const offeredTitle = offeredResult.rows[0].title;
+
+    // Fetch requesting user's name
+    const userResult = await pool.query(
+      `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Requesting user not found' });
+    }
+
+    const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+
+    // Compose product/service link (adjust domain and paths as needed)
+    const productLink = `http://localhost:3000/${requestedType}s/${requestedId}`;
+
+    // Compose notification message
+    const message = `${userName} is interested in swapping their ${offeredType} "${offeredTitle}" for your ${requestedType} "${requestedTitle}".`;
+
+    // Insert notification for the owner
+    await pool.query(
+      `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, product_link) 
+       VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)`,
+      [ownerUserId, message, requestedId, requestedType, offeredId, offeredType, productLink]
+    );
+
+    // Send email notification
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: ownerEmail,
+      subject: 'New Swap Request',
+      text: `${message} View it here: ${productLink}`,
+      html: `
+        <p>${message}</p>
+        <p>View it here: <a href="${productLink}">${productLink}</a></p>
+      `
+    });
+
+    // Respond success
+    return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
+
+  } catch (error) {
+    console.error('Error saving swap request:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
 });
+
 
 
 
