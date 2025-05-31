@@ -1197,17 +1197,18 @@ app.post('/api/swap-request', async (req, res) => {
 
     const newRequest = await pool.query(insertQuery, insertValues);
 
-    // Fetch requested entity details
+    // Helper function to fetch entity details
     const fetchEntity = async (type, id) => {
       if (type === 'item') {
-        const res = await pool.query(`SELECT title, email, user_id FROM item WHERE id = $1`, [id]);
-        return res.rows[0];
+        const result = await pool.query(`SELECT title, email, user_id FROM item WHERE id = $1`, [id]);
+        return result.rows[0];
       } else {
-        const res = await pool.query(`SELECT title, email, user_id FROM service WHERE id = $1`, [id]);
-        return res.rows[0];
+        const result = await pool.query(`SELECT title, email, user_id FROM service WHERE id = $1`, [id]);
+        return result.rows[0];
       }
     };
 
+    // Fetch requested entity details
     const requestedEntity = await fetchEntity(requestedType, requestedId);
     if (!requestedEntity) {
       return res.status(404).json({ success: false, message: `Requested ${requestedType} not found` });
@@ -1223,11 +1224,11 @@ app.post('/api/swap-request', async (req, res) => {
     }
     const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
-    // Compose product link for requested entity
+    // Compose product link for the offered entity (not the requested one)
     const productLink =
-      requestedType === 'item'
-        ? `http://localhost:3000/products/${requestedId}`
-        : `http://localhost:3000/services/${requestedId}`;
+      offeredType === 'item'
+        ? `http://localhost:3000/products/${offeredId}`
+        : `http://localhost:3000/services/${offeredId}`;
 
     // Compose notification message
     let message;
@@ -1242,7 +1243,7 @@ app.post('/api/swap-request', async (req, res) => {
       message = `${userName} is interested in swapping their ${offeredType} "${offeredEntity.title}" for your ${requestedType} "${requestedEntity.title}".`;
     }
 
-    // Insert notification
+    // Insert notification for the owner of requested entity
     await pool.query(
       `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, is_money_offer, money_amount, product_link)
        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)`,
@@ -1259,7 +1260,7 @@ app.post('/api/swap-request', async (req, res) => {
       ]
     );
 
-    // Send email notification
+    // Send email notification to the requested entity's email
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: requestedEntity.email,
