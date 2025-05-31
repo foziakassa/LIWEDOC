@@ -1133,7 +1133,6 @@ app.get("/postservice/:userId", async (req, res) => {
 app.post('/api/swap-request', async (req, res) => {
   const { userId, requestedId, requestedType, offeredId, offeredType } = req.body;
 
-  // Validate required fields and types
   if (
     !userId ||
     !requestedId ||
@@ -1155,19 +1154,13 @@ app.post('/api/swap-request', async (req, res) => {
       [userId, requestedId, requestedType, offeredId, offeredType]
     );
 
-    // Helper function to fetch entity details (title, email, user_id)
+    // Helper to fetch entity details
     const fetchEntityDetails = async (type, id) => {
       if (type === 'item') {
-        const result = await pool.query(
-          `SELECT title, email, user_id FROM item WHERE id = $1`,
-          [id]
-        );
+        const result = await pool.query(`SELECT title, email, user_id FROM item WHERE id = $1`, [id]);
         return result.rows[0];
       } else {
-        const result = await pool.query(
-          `SELECT title, email, user_id FROM service WHERE id = $1`,
-          [id]
-        );
+        const result = await pool.query(`SELECT title, email, user_id FROM service WHERE id = $1`, [id]);
         return result.rows[0];
       }
     };
@@ -1178,7 +1171,7 @@ app.post('/api/swap-request', async (req, res) => {
       return res.status(404).json({ success: false, message: `Requested ${requestedType} not found` });
     }
 
-    // Fetch offered entity details (title only needed)
+    // Fetch offered entity details
     const offeredEntity = await fetchEntityDetails(offeredType, offeredId);
     if (!offeredEntity) {
       return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
@@ -1194,12 +1187,12 @@ app.post('/api/swap-request', async (req, res) => {
     }
     const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
-    // Compose product/service link exactly as requested
+    // Compose product link using the offered entity (the item/service offered by requester)
     let productLink;
-    if (requestedType === 'item') {
-      productLink = `http://localhost:3000/products/${requestedId}`;
+    if (offeredType === 'item') {
+      productLink = `http://localhost:3000/products/${offeredId}`;
     } else {
-      productLink = `http://localhost:3000/services/${requestedId}`;
+      productLink = `http://localhost:3000/services/${offeredId}`;
     }
 
     // Compose notification message
@@ -1220,15 +1213,15 @@ app.post('/api/swap-request', async (req, res) => {
       ]
     );
 
-    // Send email notification to the requested entity's email
+    // Send email notification to the requested entity's email with offered product link
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: requestedEntity.email,
       subject: 'New Swap Request',
-      text: `${message}. View it here: ${productLink}`,
+      text: `${message}. View the offered product here: ${productLink}`,
       html: `
         <p>${message}.</p>
-        <p>View it here: <a href="${productLink}">${productLink}</a></p>
+        <p>View the offered product: <a href="${productLink}">${productLink}</a></p>
       `
     });
 
@@ -1239,6 +1232,7 @@ app.post('/api/swap-request', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
+
 
 
 
