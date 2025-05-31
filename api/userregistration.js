@@ -927,8 +927,6 @@ app.post("/api/services", async (req, res) => {
     });
   }
 });
-
-
 // Get item by ID endpointu
 app.get("/api/services/:id", async (req, res) => {
   const ServiceId = req.params.id;
@@ -979,7 +977,6 @@ app.get("/services", async (req, res) => {
   }
 });
 
-// cloudinary.config({
 //   cloud_name: process.env.CLOUDERY_API_NAME, // Replace with your Cloudinary cloud name
 //   api_key: process.env.CLOUDERY_API_KEY,       // Replace with your Cloudinary API key
 //   api_secret: process.env.CLOUDERY_API_SECRET,  // Replace with your Cloudinary API secret
@@ -1037,88 +1034,209 @@ app.get("/postservice/:userId", async (req, res) => {
   }
 });
 
+ app.get("/services", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM service ORDER BY createdat DESC");
+    return res.status(200).json({
+      success: true,
+      service: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch items",
+    });
+  }
+});
 
+// app.post('/api/swap-request', async (req, res) => {
+//     const { userId, itemId, offeredItemId } = req.body;
 
+//     if (!userId || !itemId || !offeredItemId) {
+//         return res.status(400).json({ success: false, message: 'Missing required fields' });
+//     }
+
+//     try {
+//         // Insert new swap request
+//         const newRequest = await pool.query(
+//             `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
+//              VALUES ($1, $2, $3) 
+//              RETURNING id`,
+//             [userId, itemId, offeredItemId]
+//         );
+
+//         // Fetch item details including owner's email
+//         const itemResult = await pool.query(
+//             `SELECT title, email, user_id FROM item WHERE id = $1`,
+//             [itemId]
+//         );
+
+//         // Fetch offered item title
+//         const offeredItemResult = await pool.query(
+//             `SELECT title FROM item WHERE id = $1`,
+//             [offeredItemId]
+//         );
+
+//         // Fetch requesting user's name
+//         const userResult = await pool.query(
+//             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
+//             [userId]
+//         );
+
+//         if (
+//             itemResult.rows.length > 0 &&
+//             userResult.rows.length > 0 &&
+//             offeredItemResult.rows.length > 0
+//         ) {
+//             const itemTitle = itemResult.rows[0].title;
+//             const offeredItemTitle = offeredItemResult.rows[0].title;
+//             const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
+//             const ownerEmail = itemResult.rows[0].email;
+//             const productLink = `http://localhost:3000/products/${itemId}`; // Change domain as needed
+
+//             // Compose message with both item titles
+//             const message = `${userName} is interested in swapping "${itemTitle}" for your item "${offeredItemTitle}"`;
+
+//             // Insert notification for the owner with product link
+//             await pool.query(
+//                 `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id, product_link) 
+//                  VALUES ($1, $2, NOW(), $3, $4, $5)`,
+//                 [
+//                     itemResult.rows[0].user_id,
+//                     message,
+//                     itemId,
+//                     offeredItemId,
+//                     productLink
+//                 ]
+//             );
+
+//             // Send email notification with product link and message
+//             await transporter.sendMail({
+//                 from: process.env.EMAIL_USER,
+//                 to: ownerEmail,
+//                 subject: 'New Swap Request',
+//                 text: `${message}. View the product here: ${productLink}`,
+//                 html: `
+//                     <p>${message}.</p>
+//                     <p>View the product: <a href="${productLink}">${productLink}</a></p>
+//                 `
+//             });
+//         }
+
+//         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
+//     } catch (error) {
+//         console.error('Error saving swap request:', error);
+//         return res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
 app.post('/api/swap-request', async (req, res) => {
-    const { userId, itemId, offeredItemId } = req.body;
+    const { userId, requestedId, requestedType, offeredId, offeredType } = req.body;
 
-    if (!userId || !itemId || !offeredItemId) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
+    // Validate required fields
+    if (
+        !userId ||
+        !requestedId ||
+        !requestedType ||
+        !offeredId ||
+        !offeredType ||
+        !['item', 'service'].includes(requestedType) ||
+        !['item', 'service'].includes(offeredType)
+    ) {
+        return res.status(400).json({ success: false, message: 'Missing or invalid required fields' });
     }
 
     try {
         // Insert new swap request
         const newRequest = await pool.query(
-            `INSERT INTO swap_requests (user_id, item_id, offered_item_id) 
-             VALUES ($1, $2, $3) 
+            `INSERT INTO swap_request (user_id, requested_id, requested_type, offered_id, offered_type) 
+             VALUES ($1, $2, $3, $4, $5) 
              RETURNING id`,
-            [userId, itemId, offeredItemId]
+            [userId, requestedId, requestedType, offeredId, offeredType]
         );
 
-        // Fetch item details including owner's email
-        const itemResult = await pool.query(
-            `SELECT title, email, user_id FROM item WHERE id = $1`,
-            [itemId]
-        );
+        // Fetch requested entity details (title, owner id, owner email)
+        let requestedQuery, requestedParams;
+        if (requestedType === 'item') {
+            requestedQuery = `
+                SELECT i.title, u.email, u.id as user_id
+                FROM item i
+                JOIN user u ON i.user_id = u.id
+                WHERE i.id = $1
+            `;
+        } else {
+            requestedQuery = `
+                SELECT s.title, u.email, u.id as user_id
+                FROM service s
+                JOIN user u ON s.user_id = u.id
+                WHERE s.id = $1
+            `;
+        }
+        requestedParams = [requestedId];
+        const requestedResult = await pool.query(requestedQuery, requestedParams);
 
-        // Fetch offered item title
-        const offeredItemResult = await pool.query(
-            `SELECT title FROM item WHERE id = $1`,
-            [offeredItemId]
-        );
+        if (requestedResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: `${requestedType} not found` });
+        }
+
+        const { title: requestedTitle, email: ownerEmail, user_id: ownerUserId } = requestedResult.rows[0];
+
+        // Fetch offered entity title
+        let offeredQuery;
+        if (offeredType === 'item') {
+            offeredQuery = `SELECT title FROM item WHERE id = $1`;
+        } else {
+            offeredQuery = `SELECT title FROM service WHERE id = $1`;
+        }
+        const offeredResult = await pool.query(offeredQuery, [offeredId]);
+        if (offeredResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: `Offered ${offeredType} not found` });
+        }
+        const offeredTitle = offeredResult.rows[0].title;
 
         // Fetch requesting user's name
         const userResult = await pool.query(
             `SELECT "Firstname", "Lastname" FROM "user" WHERE id = $1`,
             [userId]
         );
-
-        if (
-            itemResult.rows.length > 0 &&
-            userResult.rows.length > 0 &&
-            offeredItemResult.rows.length > 0
-        ) {
-            const itemTitle = itemResult.rows[0].title;
-            const offeredItemTitle = offeredItemResult.rows[0].title;
-            const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
-            const ownerEmail = itemResult.rows[0].email;
-            const productLink = `http://localhost:3000/products/${itemId}`; // Change domain as needed
-
-            // Compose message with both item titles
-            const message = `${userName} is interested in swapping "${itemTitle}" for your item "${offeredItemTitle}"`;
-
-            // Insert notification for the owner with product link
-            await pool.query(
-                `INSERT INTO notifications (user_id, message, created_at, item_id, offered_item_id, product_link) 
-                 VALUES ($1, $2, NOW(), $3, $4, $5)`,
-                [
-                    itemResult.rows[0].user_id,
-                    message,
-                    itemId,
-                    offeredItemId,
-                    productLink
-                ]
-            );
-
-            // Send email notification with product link and message
-            await transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: ownerEmail,
-                subject: 'New Swap Request',
-                text: `${message}. View the product here: ${productLink}`,
-                html: `
-                    <p>${message}.</p>
-                    <p>View the product: <a href="${productLink}">${productLink}</a></p>
-                `
-            });
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Requesting user not found' });
         }
+        const userName = `${userResult.rows[0].Firstname} ${userResult.rows[0].Lastname}`;
 
+        // Compose product/service link (adjust domain and paths as needed)
+        const productLink = `http://localhost:3000/${requestedType}s/${requestedId}`;
+
+        // Compose notification message
+        const message = `${userName} is interested in swapping their ${offeredType} "${offeredTitle}" for your ${requestedType} "${requestedTitle}".`;
+
+        // Insert notification for the owner
+        await pool.query(
+            `INSERT INTO notification (user_id, message, created_at, requested_id, requested_type, offered_id, offered_type, product_link) 
+             VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)`,
+            [ownerUserId, message, requestedId, requestedType, offeredId, offeredType, productLink]
+        );
+
+        // Send email notification
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: ownerEmail,
+            subject: 'New Swap Request',
+            text: `${message} View it here: ${productLink}`,
+            html: `
+                <p>${message}</p>
+                <p>View it here: <a href="${productLink}">${productLink}</a></p>
+            `
+        });
+
+        // Respond success
         return res.status(201).json({ success: true, requestId: newRequest.rows[0].id });
     } catch (error) {
         console.error('Error saving swap request:', error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
 
 
 // GET route to fetch all swap requests
@@ -1187,7 +1305,6 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
-
 
 // POST route to reject a swap request
 app.post('/api/swap-requests/reject/:requestId', async (req, res) => {
