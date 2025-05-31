@@ -1155,27 +1155,25 @@ app.post('/api/swap-request', async (req, res) => {
             [userId, requestedId, requestedType, offeredId, offeredType]
         );
 
-        // Fetch requested entity details (title, owner id, owner email)
-        let requestedQuery, requestedParams;
+        // Fetch requested entity details //(title, owner id, owner email)
+let requestedQuery, requestedParams;
 if (requestedType === 'item') {
     requestedQuery = `
-        SELECT i.title, u.email, u.id AS user_id
+        SELECT i.title, u."Email", u.id AS user_id
         FROM item i
         JOIN "user" u ON i.user_id = u.id
         WHERE i.id = $1
     `;
 } else {
     requestedQuery = `
-        SELECT s.title, u.email, u.id AS user_id
+        SELECT s.title, u."Email", u.id AS user_id
         FROM service s
         JOIN "user" u ON s.user_id = u.id
         WHERE s.id = $1
     `;
 }
 requestedParams = [requestedId];
-// const requestedResult = await pool.query(requestedQuery, requestedParams);
-        const requestedResult = await pool.query(requestedQuery, requestedParams);
-
+const requestedResult = await pool.query(requestedQuery, requestedParams);
         if (requestedResult.rows.length === 0) {
             return res.status(404).json({ success: false, message: `${requestedType} not found` });
         }
