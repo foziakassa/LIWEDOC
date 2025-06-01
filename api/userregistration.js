@@ -1496,6 +1496,7 @@ app.post('/api/swap-request', async (req, res) => {
 // GET all swap requests
 // GET all swap requests
 // GET all swap requests
+// GET all swap requests
 app.get("/api/swap-requests", async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM swap_request`)
@@ -1531,6 +1532,30 @@ app.post("/api/swap-requests/accept/:notificationId", async (req, res) => {
     // Check if already accepted
     if (notif.accepted) {
       return res.status(409).json({ success: false, message: "Swap request already accepted." })
+    }
+
+    // Check if items are already swapped
+    const checkItemStatus = async (type, id) => {
+      const table = type === "item" ? "item" : "service"
+      const result = await pool.query(`SELECT status FROM ${table} WHERE id = $1`, [id])
+      return result.rows.length ? result.rows[0].status : null
+    }
+
+    const requestedItemStatus = await checkItemStatus(notif.requested_type, notif.requested_id)
+    const offeredItemStatus = await checkItemStatus(notif.offered_type, notif.offered_id)
+
+    if (requestedItemStatus === "swapped") {
+      return res.status(409).json({
+        success: false,
+        message: "The requested item has already been swapped and is no longer available.",
+      })
+    }
+
+    if (offeredItemStatus === "swapped") {
+      return res.status(409).json({
+        success: false,
+        message: "The offered item has already been swapped and is no longer available.",
+      })
     }
 
     // Update statuses to 'swapped' for both items/services
@@ -1665,6 +1690,41 @@ app.post("/api/notifications/reject/:notificationId", async (req, res) => {
     return res.status(200).json({ success: true, message: "Notification rejected and status updated" })
   } catch (error) {
     console.error("Error rejecting notification:", error)
+    return res.status(500).json({ success: false, message: "Internal Server Error" })
+  }
+})
+
+// Add endpoint to get item/service status
+app.get("/api/items/:itemId", async (req, res) => {
+  const itemId = req.params.itemId
+
+  try {
+    const result = await pool.query(`SELECT * FROM item WHERE id = $1`, [itemId])
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Item not found." })
+    }
+
+    return res.status(200).json({ success: true, item: result.rows[0] })
+  } catch (error) {
+    console.error("Error fetching item:", error)
+    return res.status(500).json({ success: false, message: "Internal Server Error" })
+  }
+})
+
+app.get("/api/services/:serviceId", async (req, res) => {
+  const serviceId = req.params.serviceId
+
+  try {
+    const result = await pool.query(`SELECT * FROM service WHERE id = $1`, [serviceId])
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Service not found." })
+    }
+
+    return res.status(200).json({ success: true, service: result.rows[0] })
+  } catch (error) {
+    console.error("Error fetching service:", error)
     return res.status(500).json({ success: false, message: "Internal Server Error" })
   }
 })
