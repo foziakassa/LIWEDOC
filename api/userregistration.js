@@ -1507,10 +1507,15 @@ app.get('/api/swap-requests', async (req, res) => {
 
 // POST accept swap request by notification ID
 app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
-  const notificationId = req.params.notificationId;
+  const notificationId = parseInt(req.params.notificationId, 10); // Convert to integer
+
+  // Check if notificationId is a valid number
+  if (isNaN(notificationId)) {
+    return res.status(400).json({ success: false, message: 'Invalid notification ID' });
+  }
 
   try {
-    // Fetch notification details including money offer info and requested user id
+    // Fetch notification details
     const notifResult = await pool.query(
       `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer, user_id AS requester_user_id FROM notification WHERE id = $1`,
       [notificationId]
@@ -1529,9 +1534,8 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
       requester_user_id,
     } = notifResult.rows[0];
 
-    // Fetch the accepting user's ID from the request (assuming auth middleware sets req.user)
-    // If not, you can pass it in the request body or headers
-    const acceptingUserId = req.user?.id;
+    // Fetch the accepting user's ID from the request
+    const acceptingUserId = req.user?.id; // Ensure req.user is set
     if (!acceptingUserId) {
       return res.status(401).json({ success: false, message: 'Unauthorized: accepting user not found' });
     }
@@ -1555,7 +1559,7 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
     // Update notification as accepted
     await pool.query(`UPDATE notification SET accepted = true WHERE id = $1`, [notificationId]);
 
-    // Fetch email from requested entity (item/service)
+    // Fetch email from the requested entity
     let emailQuery;
     if (requested_type === 'item') {
       emailQuery = `SELECT email FROM item WHERE id = $1`;
@@ -1569,7 +1573,7 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
     }
     const ownerEmail = emailResult.rows[0].email;
 
-    // Fetch accepting user's detailed info (name, phone, email, city, subcity)
+    // Fetch accepting user's details
     const acceptingUserResult = await pool.query(
       `SELECT "Firstname", "Lastname", "Phone", "Email", "Location", "Subcity" FROM "user" WHERE id = $1`,
       [acceptingUserId]
@@ -1581,42 +1585,10 @@ app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
 
     const acceptingUser = acceptingUserResult.rows[0];
     const acceptingUserName = `${acceptingUser.Firstname} ${acceptingUser.Lastname}`;
-    const acceptingUserPhone = acceptingUser.Phone || "N/A";
-    const acceptingUserEmail = acceptingUser.Email || "N/A";
-    const acceptingUserCity = acceptingUser.Location || "N/A";
-    const acceptingUserSubcity = acceptingUser.Subcity || "N/A";
 
     // Compose email content
     const subject = 'Your Swap Request Has Been Accepted!';
-    const text = `
-Hello,
-
-Your swap request has been accepted by ${acceptingUserName}.
-
-Here are the details of the user who accepted your request:
-
-Name: ${acceptingUserName}
-Phone: ${acceptingUserPhone}
-Email: ${acceptingUserEmail}
-City: ${acceptingUserCity}
-Subcity: ${acceptingUserSubcity}
-
-Thank you for using our service!
-`;
-
-    const html = `
-      <p>Hello,</p>
-      <p>Your swap request has been accepted by <strong>${acceptingUserName}</strong>.</p>
-      <p>Here are the details of the user who accepted your request:</p>
-      <ul>
-        <li><strong>Name:</strong> ${acceptingUserName}</li>
-        <li><strong>Phone:</strong> ${acceptingUserPhone}</li>
-        <li><strong>Email:</strong> ${acceptingUserEmail}</li>
-        <li><strong>City:</strong> ${acceptingUserCity}</li>
-        <li><strong>Subcity:</strong> ${acceptingUserSubcity}</li>
-      </ul>
-      <p>Thank you for using our service!</p>
-    `;
+    const text = `Hello,\n\nYour swap request has been accepted by ${acceptingUserName}.\n\nThank you for using our service!`;
 
     // Send email notification
     await transporter.sendMail({
@@ -1624,7 +1596,6 @@ Thank you for using our service!
       to: ownerEmail,
       subject,
       text,
-      html,
     });
 
     return res.status(200).json({ success: true, message: 'Swap request accepted and notification sent' });
@@ -1634,6 +1605,8 @@ Thank you for using our service!
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
+
+
 // app.post('/api/notifications/accept/:notificationId', async (req, res) => {
 //   const notificationId = req.params.notificationId;
 
