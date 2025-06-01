@@ -51,11 +51,11 @@ module.exports = async (req, res) => {
     console.log('Database connected successfully');
 
     if (req.method === 'GET') {
-      // GET user profile
+      // GET user profile from 'user' table
       console.log('Executing GET request for user:', userId);
       
       const result = await client.query(
-        'SELECT * FROM users WHERE id = $1',
+        'SELECT * FROM "user" WHERE id = $1',
         [userId]
       );
 
@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
       });
 
     } else if (req.method === 'PUT') {
-      // UPDATE user profile
+      // UPDATE user profile in 'user' table
       console.log('Executing PUT request for user:', userId);
       console.log('Request body:', req.body);
 
@@ -111,8 +111,8 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Check if user exists first
-      const userCheck = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+      // Check if user exists first in 'user' table
+      const userCheck = await client.query('SELECT * FROM "user" WHERE id = $1', [userId]);
       
       if (userCheck.rows.length === 0) {
         return res.status(404).json({
@@ -125,7 +125,7 @@ module.exports = async (req, res) => {
 
       // Check if email is already taken by another user
       const emailCheck = await client.query(
-        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        'SELECT id FROM "user" WHERE email = $1 AND id != $2',
         [email.toLowerCase().trim(), userId]
       );
       
@@ -136,27 +136,24 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Update user profile - try both column name formats
-      let updateQuery;
-      let updateParams;
-
-      // First, let's check what columns exist in the users table
+      // Check what columns exist in the 'user' table
       const tableInfo = await client.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'users'
+        WHERE table_name = 'user'
       `);
       
       const columns = tableInfo.rows.map(row => row.column_name);
-      console.log('Available columns in users table:', columns);
+      console.log('Available columns in user table:', columns);
 
       // Determine column names based on what exists
       const firstNameCol = columns.includes('first_name') ? 'first_name' : 'firstname';
       const lastNameCol = columns.includes('last_name') ? 'last_name' : 'lastname';
       const updatedAtCol = columns.includes('updated_at') ? 'updated_at' : 'updatedat';
 
-      updateQuery = `
-        UPDATE users 
+      // Build update query for 'user' table
+      const updateQuery = `
+        UPDATE "user" 
         SET ${firstNameCol} = $1, 
             ${lastNameCol} = $2, 
             email = $3, 
@@ -168,7 +165,7 @@ module.exports = async (req, res) => {
         RETURNING *
       `;
 
-      updateParams = [
+      const updateParams = [
         firstName.trim(),
         lastName.trim(),
         email.toLowerCase().trim(),
@@ -218,6 +215,14 @@ module.exports = async (req, res) => {
       return res.status(503).json({
         success: false,
         message: 'Database connection failed',
+        error: error.message
+      });
+    }
+
+    if (error.code === '42P01') { // Table does not exist
+      return res.status(500).json({
+        success: false,
+        message: 'User table not found in database',
         error: error.message
       });
     }
