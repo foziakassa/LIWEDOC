@@ -1495,8 +1495,6 @@ app.post('/api/swap-request', async (req, res) => {
 // });
 // GET all swap requests
 // GET all swap requests
-// GET all swap requests
-// GET all swap requests
 app.get("/api/swap-requests", async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM swap_request`)
@@ -1507,7 +1505,7 @@ app.get("/api/swap-requests", async (req, res) => {
   }
 })
 
-// POST accept swap request by notification ID - MAIN ACCEPT ENDPOINT
+// POST accept swap request by notification ID
 app.post("/api/swap-requests/accept/:notificationId", async (req, res) => {
   const notificationId = Number.parseInt(req.params.notificationId, 10)
 
@@ -1534,28 +1532,10 @@ app.post("/api/swap-requests/accept/:notificationId", async (req, res) => {
       return res.status(409).json({ success: false, message: "Swap request already accepted." })
     }
 
-    // Check if items are already swapped
-    const checkItemStatus = async (type, id) => {
-      const table = type === "item" ? "item" : "service"
-      const result = await pool.query(`SELECT status FROM ${table} WHERE id = $1`, [id])
-      return result.rows.length ? result.rows[0].status : null
-    }
-
-    const requestedItemStatus = await checkItemStatus(notif.requested_type, notif.requested_id)
-    const offeredItemStatus = await checkItemStatus(notif.offered_type, notif.offered_id)
-
-    if (requestedItemStatus === "swapped") {
-      return res.status(409).json({
-        success: false,
-        message: "The requested item has already been swapped and is no longer available.",
-      })
-    }
-
-    if (offeredItemStatus === "swapped") {
-      return res.status(409).json({
-        success: false,
-        message: "The offered item has already been swapped and is no longer available.",
-      })
+    // Ensure the user is authenticated
+    const acceptingUserId = req.user?.id
+    if (!acceptingUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." })
     }
 
     // Update statuses to 'swapped' for both items/services
@@ -1585,28 +1565,38 @@ app.post("/api/swap-requests/accept/:notificationId", async (req, res) => {
     const requestedOwnerEmail = await getEmail(notif.requested_type, notif.requested_id)
     const offeredOwnerEmail = await getEmail(notif.offered_type, notif.offered_id)
 
-    // Send email notifications if emails exist
-    const subject = "Your Swap Request Has Been Accepted!"
-    const text = `Hello,\n\nYour swap request has been accepted.\n\nBoth items/services have been marked as swapped.\n\nThank you for using our service!`
+    // Fetch accepting user's details
+    const acceptingUserResult = await pool.query(`SELECT "Firstname", "Lastname", "Email" FROM "user" WHERE id = $1`, [
+      acceptingUserId,
+    ])
 
-    // Send email to both parties if emails exist
-    const emailsToNotify = [requestedOwnerEmail, offeredOwnerEmail].filter(Boolean)
+    if (acceptingUserResult.rows.length > 0) {
+      const acceptingUser = acceptingUserResult.rows[0]
+      const acceptingUserName = `${acceptingUser.Firstname} ${acceptingUser.Lastname}`
 
-    if (emailsToNotify.length > 0) {
-      await Promise.all(
-        emailsToNotify.map((email) =>
-          transporter
-            .sendMail({
-              from: process.env.EMAIL_USER,
-              to: email,
-              subject,
-              text,
-            })
-            .catch((emailError) => {
-              console.error("Error sending email to:", email, emailError)
-            }),
-        ),
-      )
+      // Compose and send emails
+      const subject = "Your Swap Request Has Been Accepted!"
+      const text = `Hello,\n\nYour swap request has been accepted by ${acceptingUserName}.\n\nBoth items/services have been marked as swapped.\n\nThank you for using our service!`
+
+      // Send email to both parties if emails exist
+      const emailsToNotify = [requestedOwnerEmail, offeredOwnerEmail].filter(Boolean)
+
+      if (emailsToNotify.length > 0) {
+        await Promise.all(
+          emailsToNotify.map((email) =>
+            transporter
+              .sendMail({
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject,
+                text,
+              })
+              .catch((emailError) => {
+                console.error("Error sending email to:", email, emailError)
+              }),
+          ),
+        )
+      }
     }
 
     return res.status(200).json({
@@ -1619,41 +1609,9 @@ app.post("/api/swap-requests/accept/:notificationId", async (req, res) => {
   }
 })
 
+
+
 // POST reject swap request by request ID
-app.post("/api/swap-requests/reject/:requestId", async (req, res) => {
-  const requestId = req.params.requestId
-
-  try {
-    await pool.query(`DELETE FROM swap_request WHERE id = $1`, [requestId])
-    return res.status(200).json({ success: true, message: "Swap request rejected" })
-  } catch (error) {
-    console.error("Error rejecting swap request:", error)
-    return res.status(500).json({ success: false, message: "Internal Server Error" })
-  }
-})
-
-// GET notifications for a specific user
-app.get("/api/notifications/:userId", async (req, res) => {
-  const userId = req.params.userId
-
-  try {
-    const result = await pool.query(
-      `SELECT * FROM notification WHERE user_id = $1 AND accepted = false ORDER BY created_at DESC`,
-      [userId],
-    )
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "No notifications found for this user." })
-    }
-
-    return res.status(200).json({ success: true, notifications: result.rows })
-  } catch (error) {
-    console.error("Error fetching notifications:", error)
-    return res.status(500).json({ success: false, message: "Internal Server Error" })
-  }
-})
-
-// POST reject notification by notification ID - KEEP THIS FOR REJECT FUNCTIONALITY
 app.post("/api/notifications/reject/:notificationId", async (req, res) => {
   const notificationId = req.params.notificationId
 
@@ -1694,40 +1652,202 @@ app.post("/api/notifications/reject/:notificationId", async (req, res) => {
   }
 })
 
-// Add endpoint to get item/service status
-app.get("/api/items/:itemId", async (req, res) => {
-  const itemId = req.params.itemId
+// GET notifications for a specific user
+app.get("/api/notifications/:userId", async (req, res) => {
+  const userId = req.params.userId
 
   try {
-    const result = await pool.query(`SELECT * FROM item WHERE id = $1`, [itemId])
+    const result = await pool.query(
+      `SELECT * FROM notification WHERE user_id = $1 AND accepted = false ORDER BY created_at DESC`,
+      [userId],
+    )
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Item not found." })
+      return res.status(404).json({ success: false, message: "No notifications found for this user." })
     }
 
-    return res.status(200).json({ success: true, item: result.rows[0] })
+    return res.status(200).json({ success: true, notifications: result.rows })
   } catch (error) {
-    console.error("Error fetching item:", error)
+    console.error("Error fetching notifications:", error)
     return res.status(500).json({ success: false, message: "Internal Server Error" })
   }
 })
 
-app.get("/api/services/:serviceId", async (req, res) => {
-  const serviceId = req.params.serviceId
+// POST accept notification by notification ID
+app.post('/api/notifications/accept/:notificationId', async (req, res) => {
+  const notificationId = req.params.notificationId;
 
   try {
-    const result = await pool.query(`SELECT * FROM service WHERE id = $1`, [serviceId])
+    const notif = await pool.query(
+      `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer FROM notification WHERE id = $1`,
+      [notificationId]
+    );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Service not found." })
+    if (notif.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
     }
 
-    return res.status(200).json({ success: true, service: result.rows[0] })
+    const { requested_id, requested_type, offered_id, offered_type, is_money_offer } = notif.rows[0];
+
+    if (!is_money_offer) {
+      const updateStatus = async (type, id, status) => {
+        if (type === 'item') {
+          await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
+        } else if (type === 'service') {
+          await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
+        }
+      };
+
+      await Promise.all([
+        updateStatus(requested_type, requested_id, 'swapped'),
+        updateStatus(offered_type, offered_id, 'swapped'),
+      ]);
+    }
+
+    const updateResult = await pool.query(`UPDATE notification SET accepted = true WHERE id = $1`, [notificationId]);
+
+    if (updateResult.rowCount === 0) {
+      console.warn("No rows updated for notification:", notificationId);
+    }
+
+    return res.status(200).json({ success: true, message: 'Notification accepted and status updated' });
+
   } catch (error) {
-    console.error("Error fetching service:", error)
-    return res.status(500).json({ success: false, message: "Internal Server Error" })
+    console.error('Error accepting notification:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
-})
+});
+
+// POST reject notification by notification ID
+// app.post('/api/notifications/reject/:notificationId', async (req, res) => {
+//   const notificationId = req.params.notificationId;
+
+//   try {
+//     const notif = await pool.query(
+//       `SELECT requested_id, requested_type, offered_id, offered_type, is_money_offer FROM notification WHERE id = $1`,
+//       [notificationId]
+//     );
+
+//     if (notif.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Notification not found' });
+//     }
+
+//     const { requested_id, requested_type, offered_id, offered_type, is_money_offer } = notif.rows[0];
+
+//     if (!is_money_offer) {
+//       const updateStatus = async (type, id, status) => {
+//         if (type === 'item') {
+//           await pool.query(`UPDATE item SET status = $1 WHERE id = $2`, [status, id]);
+//         } else if (type === 'service') {
+//           await pool.query(`UPDATE service SET status = $1 WHERE id = $2`, [status, id]);
+//         }
+//       };
+
+//       await Promise.all([
+//         updateStatus(requested_type, requested_id, 'draft'),
+//         updateStatus(offered_type, offered_id, 'draft'),
+//       ]);
+//     }
+
+//     // Optionally delete or update swap_request and notification entries here
+
+//     return res.status(200).json({ success: true, message: 'Notification rejected and status updated' });
+
+//   } catch (error) {
+//     console.error('Error rejecting notification:', error);
+//     return res.status(500).json({ success: false, message: 'Internal Server Error' });
+//   }
+// });
+// Accept a swap request by notification ID
+app.post('/api/swap-requests/accept/:notificationId', async (req, res) => {
+  const notificationId = parseInt(req.params.notificationId, 10);
+
+  if (isNaN(notificationId)) {
+    return res.status(400).json({ success: false, message: 'Invalid notification ID.' });
+  }
+
+  try {
+    // Fetch notification details
+    const notifResult = await pool.query(
+      `SELECT id, requested_id, requested_type, offered_id, offered_type, is_money_offer, user_id AS requester_user_id, accepted
+       FROM notification WHERE id = $1`,
+      [notificationId]
+    );
+    if (notifResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Notification not found.' });
+    }
+    const notif = notifResult.rows[0];
+
+    // Check if already accepted
+    if (notif.accepted) {
+      return res.status(409).json({ success: false, message: 'Swap request already accepted.' });
+    }
+
+    // Ensure the user is authenticated
+    const acceptingUserId = req.user?.id;
+    if (!acceptingUserId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
+
+    // Optional: Check if acceptingUserId is the recipient of the swap (e.g., owner of requested_id)
+    // You can add a query here to fetch the owner of requested_id and compare with acceptingUserId
+
+    // If not a money offer, update statuses
+    if (!notif.is_money_offer) {
+      const updateStatus = async (type, id, status) => {
+        const table = type === 'item' ? 'item' : 'service';
+        await pool.query(`UPDATE ${table} SET status = $1 WHERE id = $2`, [status, id]);
+      };
+      await Promise.all([
+        updateStatus(notif.requested_type, notif.requested_id, 'swapped'),
+        updateStatus(notif.offered_type, notif.offered_id, 'swapped'),
+      ]);
+    }
+
+    // Mark notification as accepted
+    await pool.query(`UPDATE notification SET accepted = true WHERE id = $1`, [notificationId]);
+
+    // Fetch emails for both parties
+    const getEmail = async (type, id) => {
+      const table = type === 'item' ? 'item' : 'service';
+      const result = await pool.query(`SELECT email FROM ${table} WHERE id = $1`, [id]);
+      return result.rows.length ? result.rows[0].email : null;
+    };
+    const requestedOwnerEmail = await getEmail(notif.requested_type, notif.requested_id);
+    const offeredOwnerEmail = await getEmail(notif.offered_type, notif.offered_id);
+
+    // Fetch accepting user's details
+    const acceptingUserResult = await pool.query(
+      `SELECT "Firstname", "Lastname", "Email" FROM "user" WHERE id = $1`,
+      [acceptingUserId]
+    );
+    const acceptingUser = acceptingUserResult.rows[0];
+    const acceptingUserName = `${acceptingUser.Firstname} ${acceptingUser.Lastname}`;
+
+    // Compose and send emails
+    const subject = 'Your Swap Request Has Been Accepted!';
+    const text = `Hello,\n\nYour swap request has been accepted by ${acceptingUserName}.\n\nThank you for using our service!`;
+
+    // Send email to both parties if emails exist
+    const emailsToNotify = [requestedOwnerEmail, offeredOwnerEmail].filter(Boolean);
+    await Promise.all(emailsToNotify.map(email =>
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject,
+        text,
+      })
+    ));
+
+    return res.status(200).json({ success: true, message: 'Swap request accepted and notifications sent.' });
+
+  } catch (error) {
+    console.error('Error accepting swap request:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error.' });
+  }
+});
+
+
 
 // Start server
 
