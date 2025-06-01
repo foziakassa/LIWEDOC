@@ -121,7 +121,7 @@
       "dest": "api/payment.js"
     },
     {
-      "src": "/api/updateprofile/(.*)",
+      "src": "/api/user_profile/(.*)",
       "dest": "api/update_profile.js"
     },
     {

@@ -1,154 +1,270 @@
 const { Pool } = require('pg');
-const nodemailer = require('nodemailer');
 
-// Configure PostgreSQL connection
+// Configure PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 1, // Limit connections for serverless
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-// Configure email transporter
-const transporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Helper function to validate email
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Helper function to validate phone number
+const isValidPhone = (phone) => {
+  if (!phone) return true; // Phone is optional
+  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+  return phoneRegex.test(phone.replace(/[\s\-$$$$]/g, ''));
+};
 
 module.exports = async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Max-Age', '86400');
 
-  // Handle preflight requests
+  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Extract user ID from URL path
-  const urlParts = req.url.split('/');
-  const userId = urlParts[urlParts.length - 1];
+  let client;
+  
+  try {
+    // Extract user ID from URL
+    const urlParts = req.url.split('/');
+    const userId = urlParts[urlParts.length - 1];
 
-  if (req.method === 'PUT') {
-    const { firstName, lastName, email, phone, bio, location } = req.body;
-
-    // Basic validation
-    if (!firstName || !lastName || !email) {
+    // Validate user ID
+    if (!userId || userId === 'user_profile' || isNaN(parseInt(userId))) {
       return res.status(400).json({
         success: false,
-        message: 'First name, last name, and email are required',
+        message: 'Valid user ID is required in the URL path',
+        example: '/api/user_profile/123'
       });
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Connect to database
+    client = await pool.connect();
+
+    // Handle different HTTP methods
+    switch (req.method) {
+      case 'GET':
+        return await handleGetProfile(req, res, client, userId);
+      case 'PUT':
+        return await handleUpdateProfile(req, res, client, userId);
+      default:
+        return res.status(405).json({
+          success: false,
+          message: `Method ${req.method} not allowed. Supported methods: GET, PUT`,
+        });
+    }
+
+  } catch (error) {
+    console.error('API Error:', error);
+    
+    // Handle specific database errors
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection failed. Please try again later.',
+      });
+    }
+
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already in use by another account',
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+};
+
+// Handle GET request - Get user profile
+async function handleGetProfile(req, res, client, userId) {
+  try {
+    const result = await client.query(
+      'SELECT id, first_name, last_name, email, phone, bio, location, created_at, updated_at FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = result.rows[0];
+    
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: user.phone,
+        bio: user.bio,
+        location: user.location,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Handle PUT request - Update user profile
+async function handleUpdateProfile(req, res, client, userId) {
+  try {
+    // Parse request body
+    let body;
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid JSON format in request body',
+      });
+    }
+
+    const { firstName, lastName, email, phone, bio, location } = body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'firstName, lastName, and email are required fields',
+        received: { firstName: !!firstName, lastName: !!lastName, email: !!email }
+      });
+    }
+
+    // Validate field lengths
+    if (firstName.length > 50 || lastName.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name and last name must be 50 characters or less',
+      });
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid email address',
       });
     }
 
-    try {
-      // Check if user exists
-      const userCheck = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-
-      if (userCheck.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found',
-        });
-      }
-
-      // Check if email is already taken by another user
-      const emailCheck = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
-      
-      if (emailCheck.rows.length > 0) {
-        return res.status(409).json({
-          success: false,
-          message: 'Email address is already in use by another account',
-        });
-      }
-
-      // Update user profile
-      const result = await pool.query(
-        `UPDATE users 
-         SET first_name = $1, last_name = $2, email = $3, phone = $4, bio = $5, location = $6, updated_at = NOW() 
-         WHERE id = $7 
-         RETURNING id, first_name, last_name, email, phone, bio, location, created_at, updated_at`,
-        [firstName, lastName, email, phone || null, bio || null, location || null, userId],
-      );
-
-      // Send confirmation email (optional - don't fail if email fails)
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Profile Updated Successfully',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #2563eb;">Profile Update Confirmation</h2>
-              <p>Hello ${firstName},</p>
-              <p>Your profile has been successfully updated with the following information:</p>
-              <ul>
-                <li><strong>Name:</strong> ${firstName} ${lastName}</li>
-                <li><strong>Email:</strong> ${email}</li>
-                <li><strong>Phone:</strong> ${phone || 'Not provided'}</li>
-                <li><strong>Location:</strong> ${location || 'Not provided'}</li>
-              </ul>
-              <p>If you did not make this change, please contact our support team immediately.</p>
-              <p>Best regards,<br>Your App Team</p>
-            </div>
-          `,
-        });
-        console.log('Confirmation email sent to:', email);
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError.message);
-        // Continue with success response even if email fails
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: 'Profile updated successfully',
-        user: {
-          id: result.rows[0].id,
-          firstName: result.rows[0].first_name,
-          lastName: result.rows[0].last_name,
-          email: result.rows[0].email,
-          phone: result.rows[0].phone,
-          bio: result.rows[0].bio,
-          location: result.rows[0].location,
-          createdAt: result.rows[0].created_at,
-          updatedAt: result.rows[0].updated_at,
-        },
-      });
-
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      
-      // Handle specific database errors
-      if (error.code === '23505') { // Unique constraint violation
-        return res.status(409).json({
-          success: false,
-          message: 'Email address is already in use',
-        });
-      }
-
-      return res.status(500).json({
+    // Validate phone number if provided
+    if (phone && !isValidPhone(phone)) {
+      return res.status(400).json({
         success: false,
-        message: 'Internal server error while updating profile',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
+        message: 'Please provide a valid phone number',
       });
     }
-  } else {
-    // Method not allowed
-    return res.status(405).json({
-      success: false,
-      message: `Method ${req.method} not allowed. Use PUT to update profile.`,
+
+    // Validate bio length
+    if (bio && bio.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bio must be 500 characters or less',
+      });
+    }
+
+    // Validate location length
+    if (location && location.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location must be 100 characters or less',
+      });
+    }
+
+    // Check if user exists
+    const userCheck = await client.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if email is already taken by another user
+    const emailCheck = await client.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [email.toLowerCase().trim(), userId]
+    );
+    
+    if (emailCheck.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already in use by another account',
+      });
+    }
+
+    // Update user profile
+    const updateResult = await client.query(
+      `UPDATE users 
+       SET first_name = $1, 
+           last_name = $2, 
+           email = $3, 
+           phone = $4, 
+           bio = $5, 
+           location = $6, 
+           updated_at = NOW() 
+       WHERE id = $7 
+       RETURNING id, first_name, last_name, email, phone, bio, location, created_at, updated_at`,
+      [
+        firstName.trim(),
+        lastName.trim(),
+        email.toLowerCase().trim(),
+        phone ? phone.trim() : null,
+        bio ? bio.trim() : null,
+        location ? location.trim() : null,
+        userId
+      ]
+    );
+
+    const updatedUser = updateResult.rows[0];
+
+    // Log successful update
+    console.log(`Profile updated successfully for user ${userId}: ${email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        bio: updatedUser.bio,
+        location: updatedUser.location,
+        createdAt: updatedUser.created_at,
+        updatedAt: updatedUser.updated_at,
+      },
     });
+
+  } catch (error) {
+    throw error;
   }
-};
+}
