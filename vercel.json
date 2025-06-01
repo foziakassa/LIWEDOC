@@ -121,6 +121,10 @@
       "dest": "api/payment.js"
     },
     {
+      "src": "/api/updateprofile/(.*)",
+      "dest": "api/update_profile.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/userregistration.js"
     }
