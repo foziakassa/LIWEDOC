@@ -800,6 +800,44 @@ app.delete('/api/deleteitem/:id', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
+// Repost item endpoint
+app.post("/api/items/repost/:id", async (req, res) => {
+  const itemId = req.params.id;
+
+  try {
+    // Update the status of the item to "draft"
+    const result = await pool.query(
+      `
+      UPDATE item 
+      SET status = 'draft' 
+      WHERE id = $1 
+      RETURNING *
+      `,
+      [itemId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    const updatedItem = result.rows[0];
+
+    return res.status(200).json({
+      success: true,
+      message: "Item reposted successfully",
+      item: updatedItem,
+    });
+  } catch (error) {
+    console.error("Error reposting item:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to repost item",
+    });
+  }
+});
 
 
 
