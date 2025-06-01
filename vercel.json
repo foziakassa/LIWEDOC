@@ -92,6 +92,26 @@
       "src": "/api/payment/receipt/(.*)",
       "dest": "api/payment.js"
     },
+     {
+      "src": "/api/revenue/total",
+      "dest": "api/revenue.js"
+    },
+    {
+      "src": "/api/revenue/breakdown",
+      "dest": "api/revenue.js"
+    },
+    {
+      "src": "/api/revenue/date-range",
+      "dest": "api/revenue.js"
+    },
+    {
+      "src": "/api/revenue/monthly",
+      "dest": "api/revenue.js"
+    },
+    {
+      "src": "/api/revenue/health",
+      "dest": "api/revenue.js"
+    },
     {
       "src": "/health",
       "dest": "api/payment.js"
