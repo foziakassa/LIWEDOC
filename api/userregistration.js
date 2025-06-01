@@ -969,14 +969,14 @@ app.post("/api/services", async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Item created successfully",
+      message: "service created successfully",
       serviceId: newServiceId,
     });
   } catch (error) {
-    console.error("Error creating item:", error);
+    console.error("Error creating service:", error);
     return res.status(400).json({
       success: false,
-      message: error.message || "Failed to create item",
+      message: error.message || "Failed to create sevice",
     });
   }
 });
@@ -995,7 +995,7 @@ app.get("/api/services/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Item not found",
+        message: "service not found",
       });
     }
 //
@@ -1005,10 +1005,10 @@ app.get("/api/services/:id", async (req, res) => {
       service,
     });
   } catch (error) {
-    console.error("Error fetching item:", error);
+    console.error("Error fetching service:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch item",
+      message: "Failed to fetch service",
     });
   }
 });
@@ -1022,10 +1022,10 @@ app.get("/services", async (req, res) => {
       service: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching items:", error);
+    console.error("Error fetching service:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch items",
+      message: "Failed to fetch service",
     });
   }
 });
