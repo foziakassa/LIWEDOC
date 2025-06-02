@@ -838,7 +838,37 @@ app.post("/api/items/repost/:id", async (req, res) => {
     });
   }
 });
+app.get("/api/items/subcategory/:subcategory", async (req, res) => {
+  const { subcategory } = req.params;
 
+  try {
+    const result = await pool.query(
+      `
+      SELECT * FROM item 
+      WHERE subcategory = $1
+      `,
+      [subcategory]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No items found in this subcategory.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error("Error retrieving items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+});
 
 
 cloudinary.config({
