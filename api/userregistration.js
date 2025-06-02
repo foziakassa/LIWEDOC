@@ -845,7 +845,7 @@ app.get("/api/items/subcategory/:subcategory", async (req, res) => {
     const result = await pool.query(
       `
       SELECT * FROM item 
-      WHERE subcategory = $1
+      WHERE subcategory = $1 AND status != 'swapped'
       `,
       [subcategory]
     );
