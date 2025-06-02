@@ -1170,6 +1170,37 @@ app.get("/postservice/:userId", async (req, res) => {
     });
   }
 });
+app.get("/api/services/subcategory/:subcategory", async (req, res) => {
+  const { subcategory } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT * FROM service 
+      WHERE subcategory = $1
+      `,
+      [subcategory]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No services found in this subcategory.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      services: result.rows,
+    });
+  } catch (error) {
+    console.error("Error retrieving services:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+});
 
 // app.post('/api/swap-request', async (req, res) => {
 //     const { userId, itemId, offeredItemId } = req.body;
