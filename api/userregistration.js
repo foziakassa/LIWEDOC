@@ -242,19 +242,19 @@ app.delete("/users/:id", async (req, res) => {
             return res.status(404).json({ error: "User not found." });
         }
 
-        // Permanently delete the user
+        // Set deleted_at to the current timestamp instead of deleting the user
         const deleteUser = await pool.query(
-            "DELETE FROM \"user\" WHERE \"id\" = $1 RETURNING *",
+            "UPDATE \"user\" SET Deletedat = NOW() WHERE \"id\" = $1 RETURNING *",
             [userId]
         );
 
         if (deleteUser.rowCount === 0) {
-            return res.status(500).json({ error: "Failed to delete user." });
+            return res.status(500).json({ error: "Failed to mark user as deleted." });
         }
 
-        return res.status(200).json({ message: "User deleted successfully.", user: deleteUser.rows[0] });
+        return res.status(200).json({ message: "User marked as deleted successfully.", user: deleteUser.rows[0] });
     } catch (err) {
-        console.error("Error deleting user:", err);
+        console.error("Error marking user as deleted:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 });
