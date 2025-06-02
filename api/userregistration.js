@@ -800,7 +800,75 @@ app.delete('/api/deleteitem/:id', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
+// Repost item endpoint
+app.post("/api/items/repost/:id", async (req, res) => {
+  const itemId = req.params.id;
 
+  try {
+    // Update the status of the item to "draft"
+    const result = await pool.query(
+      `
+      UPDATE item 
+      SET status = 'draft' 
+      WHERE id = $1 
+      RETURNING *
+      `,
+      [itemId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    const updatedItem = result.rows[0];
+
+    return res.status(200).json({
+      success: true,
+      message: "Item reposted successfully",
+      item: updatedItem,
+    });
+  } catch (error) {
+    console.error("Error reposting item:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to repost item",
+    });
+  }
+});
+app.get("/api/items/subcategory/:subcategory", async (req, res) => {
+  const { subcategory } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT * FROM item 
+      WHERE subcategory = $1 AND status != 'swapped'
+      `,
+      [subcategory]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No items found in this subcategory.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error("Error retrieving items:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+});
 
 
 cloudinary.config({
@@ -1099,6 +1167,37 @@ app.get("/postservice/:userId", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch items",
+    });
+  }
+});
+app.get("/api/services/subcategory/:subcategory", async (req, res) => {
+  const { subcategory } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT * FROM service 
+      WHERE subcategory = $1
+      `,
+      [subcategory]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No services found in this subcategory.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      services: result.rows,
+    });
+  } catch (error) {
+    console.error("Error retrieving services:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 });
