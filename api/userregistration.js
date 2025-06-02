@@ -244,7 +244,7 @@ app.delete("/users/:id", async (req, res) => {
 
         // Set deleted_at to the current timestamp instead of deleting the user
         const deleteUser = await pool.query(
-            "UPDATE \"user\" SET Deletedat = NOW() WHERE \"id\" = $1 RETURNING *",
+            "UPDATE \"user\" SET \"Deletedat\" = NOW() WHERE \"id\" = $1 RETURNING *",
             [userId]
         );
 
