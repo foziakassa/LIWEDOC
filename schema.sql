@@ -11,6 +11,111 @@ CREATE TABLE IF NOT EXISTS "user" (
   "Deletedat" TIMESTAMP WITH TIME ZONE
 );
 
+CREATE TABLE IF NOT EXISTS visitors (
+  id BIGSERIAL PRIMARY KEY,
+  ip_address VARCHAR(45) NOT NULL,      -- fits IPv4 and IPv6
+  visit_time TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS advertisements (
+  id BIGSERIAL PRIMARY KEY,
+
+  company_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone_number TEXT NOT NULL,
+  product_description TEXT NOT NULL,
+
+  -- matches: req.file.buffer (binary data)
+  product_image BYTEA NOT NULL,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS item (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) NOT NULL,
+    subcategory VARCHAR(100),
+    condition VARCHAR(50) NOT NULL,
+    price DECIMAL(10, 2),
+    city VARCHAR(100) NOT NULL,
+    subcity VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    preferred_contact_method VARCHAR(50),
+    image_urls TEXT[] DEFAULT '{}',
+    user_id INTEGER NOT NULL,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'active',
+
+    
+    -- Foreign key constraint (assuming you have a users table)
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS service (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) NOT NULL,
+    subcategory VARCHAR(100),
+    price DECIMAL(10, 2),
+    city VARCHAR(100) NOT NULL,
+    subcity VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    preferred_contact_method VARCHAR(50),
+    image_urls TEXT[] DEFAULT '{}',
+    user_id INTEGER NOT NULL,
+    createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'active',
+    
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS "ActivationToken" (
+    "id" INTEGER PRIMARY KEY,  -- This stores the user ID directly
+    "Token" VARCHAR(255) NOT NULL UNIQUE,
+    "Createdat" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "Expiredat" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "Usedat" TIMESTAMP WITH TIME ZONE,
+    
+    CONSTRAINT fk_user FOREIGN KEY ("id") REFERENCES "user"("id") ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS plans (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  posts_count INTEGER NOT NULL,
+  description TEXT,
+  is_popular BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS charities (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    image BYTEA,                           -- Stores image as binary data
+    goal DECIMAL(15, 2) NOT NULL,          -- Financial goal amount
+    location VARCHAR(255) NOT NULL,
+    needed JSONB,                          -- Stores needed items as JSON
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'active'    -- active, completed, cancelled
+);
+
+
+
+
 -- Create posts table if it doesn't exist
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
