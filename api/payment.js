@@ -132,7 +132,7 @@ app.post("/api/payment/initialize", async (req, res) => {
     )
 
     // Initialize payment with Chapa
-    const chapaSecretKey = process.env.CHAPA_SECRET_KEY
+    const chapaSecretKey = process.env.CHAPA_SECRET_KEY  ??  "CHAPUBK_TEST-vCpPXAXscoypAaS4RJg9D942VjsdDShc"
 
     const response = await fetch("https://api.chapa.co/v1/transaction/initialize", {
       method: "POST",
@@ -144,8 +144,8 @@ app.post("/api/payment/initialize", async (req, res) => {
         amount: plan.price.toString(),
         currency: currency || "ETB",
         tx_ref: tx_ref,
-        callback_url: `${process.env.BACKEND_URL || "http://localhost:5000"}/api/payment/callback`,
-        return_url: `${process.env.FRONTEND_URL || "http://localhost:3000"}/payment/success?tx_ref=${tx_ref}`,
+        callback_url: `https://webhook.site/077164d6-29cb-40df-ba29-8a00e59a7e60 || ${process.env.BACKEND_URL || "http://localhost:5000"}/api/payment/callback`,
+        return_url: `https://www.google.com/ || ${process.env.FRONTEND_URL || "http://localhost:3000"}/payment/success?tx_ref=${tx_ref}`,
         first_name: customerName?.split(" ")[0] || "Customer",
         last_name: customerName?.split(" ").slice(1).join(" ") || "",
         email: customerEmail,
@@ -154,6 +154,14 @@ app.post("/api/payment/initialize", async (req, res) => {
         phone_number: "0900000000", // Default phone number
       }),
     })
+  
+
+  
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    console.log(response.body);
+  });
+  
 
     if (!response.ok) {
       const errorData = await response.json()
